@@ -52,7 +52,36 @@ public class Base85Test {
          assertArrayEquals( "Decode " + rfcTests[i+1] + " to bytes", rfcTests[i].getBytes( UTF_8 ), rfcD.decode( rfcTests[i+1].getBytes( US_ASCII ) ) );
       }
    }
-   @Test public void testRfcByteEncodeDecode() {
+   @Test public void testRfcEncode() {
+      String origStr = rfcTests[ rfcTests.length - 2 ], codeStr = rfcTests[ rfcTests.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertEquals( "encodeToString", codeStr, rfcE.encodeToString( orig ) );
+      assertArrayEquals( "Byte to byte encode", code, rfcE.encode( orig ) );
+      byte[] buf = Arrays.copyOf( orig, orig.length * 2 );
+      assertArrayEquals( "Byte to byte encode offset 0", code, rfcE.encode( buf, 0, orig.length ) );
+      System.arraycopy( buf, 0, buf, 2, orig.length );
+      assertArrayEquals( "Byte to byte encode offset 2", code, rfcE.encode( buf, 2, orig.length ) );
+      byte[] output = new byte[ code.length + 2 ];
+      rfcE.encode( orig, 0, orig.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct encode offset 0", code, Arrays.copyOfRange( output, 0, code.length ) );
+      rfcE.encode( buf, 2, orig.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
+   }
+   @Test public void testRfcDecode() {
+      String origStr = rfcTests[ rfcTests.length - 2 ], codeStr = rfcTests[ rfcTests.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertArrayEquals( "Byte to byte decode", orig, rfcD.decode( code ) );
+      byte[] buf = Arrays.copyOf( code, code.length * 2 );
+      assertArrayEquals( "Byte to byte decode offset 0", orig, rfcD.decode( buf, 0, code.length ) );
+      System.arraycopy( buf, 0, buf, 2, code.length );
+      assertArrayEquals( "Byte to byte decode offset 2", orig, rfcD.decode( buf, 2, code.length ) );
+      byte[] output = new byte[ orig.length + 2 ];
+      rfcD.decode( code, 0, code.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct decode offset 0", orig, Arrays.copyOfRange( output, 0, orig.length ) );
+      rfcD.decode( buf, 2, code.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
+   }
+   @Test public void testRfcRoundTrip() {
       for ( int len = 1 ; len <= 8 ; len++ ) {
          final byte[] from = new byte[ len ];
          for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
