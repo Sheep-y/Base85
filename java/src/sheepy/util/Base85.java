@@ -60,7 +60,7 @@ public class Base85 {
          if ( offset < 0 || length < 0 || offset + length > data.length )
             throw new IllegalArgumentException();
          byte[] out = new byte[ calcEncodedLength( data, offset, length ) ];
-         _encode( data, 0, data.length, out, 0 );
+         _encode( data, offset, length, out, 0 );
          return out;
       }
 
@@ -125,7 +125,7 @@ public class Base85 {
          if ( offset < 0 || length < 0 || offset + length > data.length )
             throw new IllegalArgumentException();
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
-         _decode( data, 0, data.length, result, 0 );
+         _decode( data, offset, length, result, 0 );
          return result;
       }
 
