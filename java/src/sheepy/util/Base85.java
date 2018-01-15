@@ -262,12 +262,15 @@ public class Base85 {
       }
    }
 
-   private static Encoder RFC1924ENCODER = new Rfc1924Encoder();
-   private static Decoder RFC1924DECODER = new Rfc1924Decoder();
+   private static Encoder RFC1924ENCODER;
+   private static Decoder RFC1924DECODER;
 
-   public static Encoder getRfc1942Encoder() { return RFC1924ENCODER; }
-   public static Decoder getRfc1942Decoder() { return RFC1924DECODER; }
-
-   public static void main ( String[] args ) {
+   public static Encoder getRfc1942Encoder() {
+      if ( RFC1924ENCODER == null ) RFC1924ENCODER = new Rfc1924Encoder();
+      return RFC1924ENCODER; // No worry if multiple encoder is created in multiple threads. Same for all.
+   }
+   public static Decoder getRfc1942Decoder() {
+      if ( RFC1924DECODER == null ) RFC1924DECODER = new Rfc1924Decoder();
+      return RFC1924DECODER;
    }
 }
