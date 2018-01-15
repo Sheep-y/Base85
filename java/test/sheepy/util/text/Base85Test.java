@@ -39,12 +39,8 @@ public class Base85Test {
    };
 
    @Test public void testRfcStrEncode() {
-      for ( int i = 0 ; i < rfcTests.length ; i += 2 ) try {
+      for ( int i = 0 ; i < rfcTests.length ; i += 2 )
          assertEquals( "Encode " + rfcTests[i], rfcTests[i+1], rfcE.encode( rfcTests[i] ) );
-      } catch ( Exception ex ) {
-         ex.printStackTrace();
-         fail( "Error when encoding " + rfcTests[i] + ": " + ex.getMessage() );
-      }
    }
    @Test public void testRfcStrDecode() {
       for ( int i = 0 ; i < rfcTests.length ; i += 2 ) {

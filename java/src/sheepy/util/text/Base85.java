@@ -167,29 +167,22 @@ public class Base85 {
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
    }
 
-   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
-     * This scheme does not use quotes, comma, or slash, and can usually be used in sql, json, csv etc. without escaping.
-     *
-     * Encoder instances can be safely shared by multiple threads.
-     * @see https://tools.ietf.org/html/rfc1924
-     */
-   public static class Rfc1924Encoder extends Encoder {
-      private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
-
+   private static abstract class SimpleEncoder extends Encoder {
+      protected abstract byte[] getEncodeMap();
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
          final int loop = rlen / 4;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
-         final byte[] buf = buffer.array();
+         final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
          for ( int i = loop ; i > 0 ; i-- ) {
             System.arraycopy( in, ri, buf, 0, 4 );
             ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = EncodeMap[ (char) ( sum / Power5 ) ]; sum %= Power5;
-            out[wi+1] = EncodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4;
-            out[wi+2] = EncodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3;
-            out[wi+3] = EncodeMap[ (char) ( sum / 85 ) ];
-            out[wi+4] = EncodeMap[ (char) ( sum % 85 ) ];
+            out[wi  ] = encodeMap[ (char) ( sum / Power5 ) ]; sum %= Power5;
+            out[wi+1] = encodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4;
+            out[wi+2] = encodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3;
+            out[wi+3] = encodeMap[ (char) ( sum / 85 ) ];
+            out[wi+4] = encodeMap[ (char) ( sum % 85 ) ];
             wi += 5;
          }
          rlen %= 4;
@@ -198,25 +191,28 @@ public class Base85 {
          for ( int i = 0 ; i < rlen ; i++ )
             sum = ( sum << 8 ) + ( in[ri+i] & 0xff );
          switch ( rlen ) {
-            case 3: out[wi] = EncodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4; ++wi;
-            case 2: out[wi] = EncodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3; ++wi;
+            case 3: out[wi] = encodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4; ++wi;
+            case 2: out[wi] = encodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3; ++wi;
          }
-         out[wi  ] = EncodeMap[ (char) ( sum / 85 ) ];
-         out[wi+1] = EncodeMap[ (char) ( sum % 85 ) ];
+         out[wi  ] = encodeMap[ (char) ( sum / 85 ) ];
+         out[wi+1] = encodeMap[ (char) ( sum % 85 ) ];
          return loop * 5 + rlen + 1;
       }
    }
 
    /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
-     * Decoder instances can be safely shared by multiple threads.
+     * This scheme does not use quotes, comma, or slash, and can usually be used in sql, json, csv etc. without escaping.
+     *
+     * Encoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924
      */
-   public static class Rfc1924Decoder extends Decoder {
-      private static final byte[] DecodeMap = new byte[256];
-      static {
-         for ( int i = 0 ; i < 85 ; ++i )
-            DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
-      }
+   public static class Rfc1924Encoder extends SimpleEncoder {
+      private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
+      protected byte[] getEncodeMap() { return EncodeMap; }
+   }
+
+   private static abstract class SimpleDecoder extends Decoder {
+      protected abstract byte[] getDecodeMap();
 
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/RFC1924 data length." );
@@ -226,13 +222,13 @@ public class Base85 {
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
          final int loop = rlen / 5;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
-         final byte[] buf = buffer.array();
+         final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
          for ( int i = loop ; i > 0 ; i-- ) {
-            buffer.putInt( 0, (int) ( DecodeMap[ in[ri  ] ] * Power5 +
-                                      DecodeMap[ in[ri+1] ] * Power4 +
-                                      DecodeMap[ in[ri+2] ] * Power3 +
-                                      DecodeMap[ in[ri+3] ] * 85 +
-                                      DecodeMap[ in[ri+4] ] ) );
+            buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power5 +
+                                      decodeMap[ in[ri+1] ] * Power4 +
+                                      decodeMap[ in[ri+2] ] * Power3 +
+                                      decodeMap[ in[ri+3] ] * 85 +
+                                      decodeMap[ in[ri+4] ] ) );
             ri += 5;
             out[wi  ] = buf[0];
             out[wi+1] = buf[1];
@@ -245,7 +241,7 @@ public class Base85 {
          final byte[] data = new byte[rlen];
          --rlen;
          for ( int i = rlen ; i >= 0 ; i-- )
-            data[i] = DecodeMap[ in[ri+i] ];
+            data[i] = decodeMap[ in[ri+i] ];
          long sum;
          switch ( rlen ) {
             case 3: sum = data[0]*Power4 + data[1]*Power3 + data[2]*85 + data[3]; break;
@@ -260,6 +256,19 @@ public class Base85 {
          }
          return loop * 4 + rlen;
       }
+   }
+
+   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+     * Decoder instances can be safely shared by multiple threads.
+     * @see https://tools.ietf.org/html/rfc1924
+     */
+   public static class Rfc1924Decoder extends SimpleDecoder {
+      private static final byte[] DecodeMap = new byte[256];
+      static {
+         for ( int i = 0 ; i < 85 ; ++i )
+            DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
+      }
+      protected byte[] getDecodeMap() { return DecodeMap; }
    }
 
    private static Encoder RFC1924ENCODER;
