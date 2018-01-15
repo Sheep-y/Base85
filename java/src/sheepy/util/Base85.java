@@ -11,7 +11,7 @@ public class Base85 {
    private static final long Power3 = 7225;   // 85^3
 
    /** This is a skeleton class for encoding data using the Base85 encoding scheme.
-     * Each Encoder instance can be safely shared by multiple threads.
+     * Encoder instances can be safely shared by multiple threads.
      */
    public static abstract class Encoder {
       /** Calculate byte length of encoded data.
@@ -39,6 +39,16 @@ public class Base85 {
         */
       public final String encodeToString ( final byte[] data ) {
          return new String( encode( data ), US_ASCII );
+      }
+
+      /** Encode part of binary data into Base85 string.
+        * @param data data to encode
+        * @param offset byte offset that data starts
+        * @param length number of data bytes
+        * @return encoded Base85 string
+        */
+      public final String encodeToString ( final byte[] data, final int offset, final int length ) {
+         return new String( encode( data, offset, length ), US_ASCII );
       }
 
       /** Encode binary data into a new byte array.
@@ -83,8 +93,8 @@ public class Base85 {
       protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
    }
 
-   /** This is a skeleton class for encoding data using the Base85 encoding scheme.
-     * Each Decoder instance can be safely shared by multiple threads.
+   /** This is a skeleton class for decoding data in the Base85 encoding scheme.
+     * Decoder instances can be safely shared by multiple threads.
      */
    public static abstract class Decoder {
       /** Calculate byte length of decoded data.
@@ -112,6 +122,14 @@ public class Base85 {
         */
       public final byte[] decode ( final byte[] data ) {
          return decode( data, 0, data.length );
+      }
+
+      /** Decode Base85 string into a new byte array.
+        * @param data data to decode
+        * @return decoded binary data
+        */
+      public final byte[] decodeToBytes ( final String data ) {
+         return decode( data.getBytes( US_ASCII ) );
       }
 
       /** Decode ASCII Base85 data into a new byte array.
@@ -149,6 +167,12 @@ public class Base85 {
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
    }
 
+   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+     * This scheme does not use quotes, comma, or slash, and can usually be used in sql, json, csv etc. without escaping.
+     *
+     * Encoder instances can be safely shared by multiple threads.
+     * @see https://tools.ietf.org/html/rfc1924
+     */
    public static class Rfc1924Encoder extends Encoder {
       private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
 
@@ -183,6 +207,10 @@ public class Base85 {
       }
    }
 
+   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+     * Decoder instances can be safely shared by multiple threads.
+     * @see https://tools.ietf.org/html/rfc1924
+     */
    public static class Rfc1924Decoder extends Decoder {
       private static final byte[] DecodeMap = new byte[256];
       static {
