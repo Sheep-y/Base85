@@ -276,7 +276,7 @@ public class Base85 {
      * @see https://tools.ietf.org/html/rfc1924
      */
    public static class Rfc1924Decoder extends SimpleDecoder {
-      private static final byte[] DecodeMap = new byte[256];
+      private static final byte[] DecodeMap = new byte[127];
       static {
          for ( int i = 0 ; i < 85 ; ++i )
             DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
@@ -291,7 +291,7 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Decoder extends SimpleDecoder {
-      private static final byte[] DecodeMap = new byte[256];
+      private static final byte[] DecodeMap = new byte[126];
       static {
          for ( int i = 0 ; i < 85 ; ++i )
             DecodeMap[ Z85Encoder.EncodeMap[i] ] = (byte) i;
