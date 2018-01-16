@@ -1,5 +1,7 @@
 package sheepy.util.text;
 
+import java.net.Inet6Address;
+import java.net.UnknownHostException;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Arrays;
@@ -7,12 +9,14 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 public class Base85Test {
-   private final Base85.Encoder rfcE;
-   private final Base85.Decoder rfcD;
+   private final Base85.Encoder rfcE, z85E;
+   private final Base85.Decoder rfcD, z85D;
 
    public Base85Test() {
       rfcE = Base85.getRfc1942Encoder();
       rfcD = Base85.getRfc1942Decoder();
+      z85E = Base85.getZ85Encoder();
+      z85D = Base85.getZ85Decoder();
    }
 
    /*
@@ -108,5 +112,12 @@ public class Base85Test {
             out = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 };
       for ( int i = 0 ; i < in.length ; i++ )
          assertEquals( "Encoded length of " + in[i] + " bytes.", out[i], rfcE.calcEncodedLength( null, 0, in[i] ) );
+   }
+
+
+
+   @Test public void testZ85Spec() {
+      byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
+      assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
    }
 }

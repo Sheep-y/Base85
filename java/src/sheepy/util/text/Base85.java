@@ -208,11 +208,23 @@ public class Base85 {
      */
    public static class Rfc1924Encoder extends SimpleEncoder {
       private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
-      protected byte[] getEncodeMap() { return EncodeMap; }
+      @Override protected byte[] getEncodeMap() { return EncodeMap; }
+   }
+
+   /** This class encodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
+     * This scheme does not use quotes or comma, and can usually be used in sql, json, csv etc. without escaping.
+     *
+     * Encoder instances can be safely shared by multiple threads.
+     * @see https://rfc.zeromq.org/spec:32/Z85/
+     */
+   public static class Z85Encoder extends SimpleEncoder {
+      private static final byte[] EncodeMap = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
+      @Override protected byte[] getEncodeMap() { return EncodeMap; }
    }
 
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
+      protected abstract void throwMalformedData();
 
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/RFC1924 data length." );
@@ -242,12 +254,12 @@ public class Base85 {
          --rlen;
          for ( int i = rlen ; i >= 0 ; i-- )
             data[i] = decodeMap[ in[ri+i] ];
-         long sum;
+         long sum = 0;
          switch ( rlen ) {
             case 3: sum = data[0]*Power4 + data[1]*Power3 + data[2]*85 + data[3]; break;
             case 2: sum = data[0]*Power3 + data[1]*85 + data[2]; break;
             case 1: sum = data[0]*85 + data[1]; break;
-            default: throw new IllegalArgumentException( "Malformed Base85/RFC1924 data" );
+            default: throwMalformedData();
          }
          switch ( rlen ) {
             case 3: out[wi] = (byte) ( sum >>> 16 ); ++wi;
@@ -258,7 +270,8 @@ public class Base85 {
       }
    }
 
-   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+   /** This class decodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+     * Spaces and invalid characters won't be skipped, and will be regarded as '0'.
      * Decoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924
      */
@@ -268,11 +281,29 @@ public class Base85 {
          for ( int i = 0 ; i < 85 ; ++i )
             DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
       }
-      protected byte[] getDecodeMap() { return DecodeMap; }
+      @Override protected byte[] getDecodeMap() { return DecodeMap; }
+      @Override protected void throwMalformedData() { throw new IllegalArgumentException( "Malformed Base85/RFC1924 data" ); }
+   }
+
+   /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
+     * Spaces and invalid characters won't be skipped, and will be regarded as '0'.
+     * Decoder instances can be safely shared by multiple threads.
+     * @see https://rfc.zeromq.org/spec:32/Z85/
+     */
+   public static class Z85Decoder extends SimpleDecoder {
+      private static final byte[] DecodeMap = new byte[256];
+      static {
+         for ( int i = 0 ; i < 85 ; ++i )
+            DecodeMap[ Z85Encoder.EncodeMap[i] ] = (byte) i;
+      }
+      @Override protected byte[] getDecodeMap() { return DecodeMap; }
+      @Override protected void throwMalformedData() { throw new IllegalArgumentException( "Malformed Base85/Z85 data" ); }
    }
 
    private static Encoder RFC1924ENCODER;
    private static Decoder RFC1924DECODER;
+   private static Encoder Z85ENCODER;
+   private static Decoder Z85DECODER;
 
    public static Encoder getRfc1942Encoder() {
       if ( RFC1924ENCODER == null ) RFC1924ENCODER = new Rfc1924Encoder();
@@ -281,5 +312,13 @@ public class Base85 {
    public static Decoder getRfc1942Decoder() {
       if ( RFC1924DECODER == null ) RFC1924DECODER = new Rfc1924Decoder();
       return RFC1924DECODER;
+   }
+   public static Encoder getZ85Encoder() {
+      if ( Z85ENCODER == null ) Z85ENCODER = new Z85Encoder();
+      return Z85ENCODER;
+   }
+   public static Decoder getZ85Decoder() {
+      if ( Z85DECODER == null ) Z85DECODER = new Z85Decoder();
+      return Z85DECODER;
    }
 }
