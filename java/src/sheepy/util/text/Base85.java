@@ -91,6 +91,13 @@ public class Base85 {
       }
 
       protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
+
+      /** Get the matching decoder.
+       * @return a matching decoder
+       */
+      public abstract Decoder getDecoder();
+      protected abstract byte[] getEncodeMap();
+      public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
    }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
@@ -164,11 +171,14 @@ public class Base85 {
          return size;
       }
 
+      /** Get the matching encoder.
+       * @return a matching encoder
+       */
+      public abstract Encoder getEncoder();
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
    }
 
    private static abstract class SimpleEncoder extends Encoder {
-      protected abstract byte[] getEncodeMap();
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
          final int loop = rlen / 4;
@@ -209,6 +219,7 @@ public class Base85 {
    public static class Rfc1924Encoder extends SimpleEncoder {
       private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return EncodeMap; }
+      @Override public Decoder getDecoder() { return getRfc1942Decoder(); }
    }
 
    /** This class encodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -220,14 +231,15 @@ public class Base85 {
    public static class Z85Encoder extends SimpleEncoder {
       private static final byte[] EncodeMap = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return EncodeMap; }
+      @Override public Decoder getDecoder() { return getZ85Decoder(); }
    }
 
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
-      protected abstract void throwMalformedData();
+      protected abstract String getName();
 
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
-         if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/RFC1924 data length." );
+         if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/" + getName() + " data length." );
          return super.calcDecodedLength( encoded_data, offset, length );
       }
 
@@ -254,12 +266,12 @@ public class Base85 {
          --rlen;
          for ( int i = rlen ; i >= 0 ; i-- )
             data[i] = decodeMap[ in[ri+i] ];
-         long sum = 0;
+         long sum;
          switch ( rlen ) {
             case 3: sum = data[0]*Power4 + data[1]*Power3 + data[2]*85 + data[3]; break;
             case 2: sum = data[0]*Power3 + data[1]*85 + data[2]; break;
             case 1: sum = data[0]*85 + data[1]; break;
-            default: throwMalformedData();
+            default: throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
          }
          switch ( rlen ) {
             case 3: out[wi] = (byte) ( sum >>> 16 ); ++wi;
@@ -276,13 +288,14 @@ public class Base85 {
      * @see https://tools.ietf.org/html/rfc1924
      */
    public static class Rfc1924Decoder extends SimpleDecoder {
+      @Override public Encoder getEncoder() { return getRfc1942Encoder(); }
       private static final byte[] DecodeMap = new byte[127];
       static {
          for ( int i = 0 ; i < 85 ; ++i )
             DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
       }
       @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override protected void throwMalformedData() { throw new IllegalArgumentException( "Malformed Base85/RFC1924 data" ); }
+      @Override protected String getName() { return "RFC1924"; }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -291,13 +304,14 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Decoder extends SimpleDecoder {
+      @Override public Encoder getEncoder() { return getZ85Encoder(); }
       private static final byte[] DecodeMap = new byte[126];
       static {
          for ( int i = 0 ; i < 85 ; ++i )
             DecodeMap[ Z85Encoder.EncodeMap[i] ] = (byte) i;
       }
       @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override protected void throwMalformedData() { throw new IllegalArgumentException( "Malformed Base85/Z85 data" ); }
+      @Override protected String getName() { return "Z85"; }
    }
 
    private static Encoder RFC1924ENCODER;
