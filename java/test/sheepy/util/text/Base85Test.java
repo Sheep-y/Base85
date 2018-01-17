@@ -4,11 +4,17 @@ import java.net.Inet6Address;
 import java.net.UnknownHostException;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+import java.util.Random;
 import static org.junit.Assert.*;
 import org.junit.Test;
+import sheepy.util.text.Base85.Decoder;
 
 public class Base85Test {
+   private final Random rng = new Random();
    private final Base85.Encoder rfcE, z85E;
    private final Base85.Decoder rfcD, z85D;
 
@@ -26,6 +32,51 @@ public class Base85Test {
    @After public void tearDown() {}
    */
 
+   /////////// Common utils ///////////
+
+   private byte[] reverseCharset( byte[] valids ) {
+      List<Byte> invalidList = new ArrayList<>(256);
+      for ( int i = Byte.MIN_VALUE ; i < Byte.MAX_VALUE ; i++ ) invalidList.add( (byte) i );
+      for ( byte e : valids ) invalidList.remove( Byte.valueOf( e ) );
+      final int len = invalidList.size();
+      byte[] result = new byte[ len ];
+      for ( int i = 0 ; i < len ; i++ ) result[i] = invalidList.get( i );
+      return result;
+   }
+
+   private void recurTestInvalid ( byte[] ok, byte[] fail, byte[] buf, int offset, Decoder decoder ) {
+      if ( offset >= buf.length ) return;
+      if ( ( offset + 1 ) % 5 == 1 )  {
+         buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
+         testDecodeFail( buf, offset, decoder ); // Wrong data length should fails
+         recurTestInvalid( ok, fail, buf, offset + 1, decoder );
+         return;
+      }
+      for ( int i = 0, len = fail.length ; i < len ; i++ ) {
+         buf[ offset ] = fail[ i ]; // Wrong data should also fails
+         testDecodeFail( buf, offset, decoder );
+      }
+      buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
+      decoder.decode( buf, 0, offset + 1 ); // Otherwise should pass
+      recurTestInvalid( ok, fail, buf, offset + 1, decoder );
+   }
+
+   private void testDecodeFail ( byte[] buf, int len, Decoder decoder ) {
+      len++;
+      try {
+         decoder.decode( buf, 0, len );
+         fail( failMessage( buf, len, null ) );
+      } catch ( IllegalArgumentException ignored ) {
+      } catch ( Exception ex ) { fail( failMessage( buf, len, ex ) ); }
+   }
+   private String failMessage ( byte[] buf, int len, Exception ex ) {
+      if ( ex != null ) ex.printStackTrace();
+      return "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\") does not throw IllegalArgumentException on decode";
+   }
+
+
+   /////////// RFC Tests ///////////
+
    private final String[] rfcTests = {
       "", "",
       "A", "0%",
@@ -41,6 +92,15 @@ public class Base85Test {
       "測試中", "=D4irsix$(23",
       "اختبارات", "*r(X8*s9p5*r(XB*r(X4",
    };
+
+   @Test public void testRfcSpec() throws UnknownHostException {
+      byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
+      assertArrayEquals( "Inet round trip", addr, rfcD.decode( rfcE.encode( addr ) ) );
+//      byte[] decoded = rfcD.decodeToBytes( "4)+k&C#VzJ4br>0wv%Yp" );
+//      System.out.println( rfcE.encodeToString( addr ) );
+//      for ( byte b : decoded )
+//         System.out.print( Integer.toHexString( ( (int) b ) & 0xff ) );
+   }
 
    @Test public void testRfcStrEncode() {
       for ( int i = 0 ; i < rfcTests.length ; i += 2 )
@@ -90,9 +150,10 @@ public class Base85Test {
          }
       }
    }
-
-   @Test(expected = IllegalArgumentException.class) public void testRfcDecodeErr() {
-      rfcD.decode( "\uffff" );
+   @Test public void testRfcDecodeErr() {
+      byte[] validCodes = rfcE.getCharset().getBytes( US_ASCII );
+      byte[] invalidCodes = reverseCharset( validCodes );
+      recurTestInvalid( validCodes, invalidCodes, new byte[11], 0, rfcD );
    }
 
    @Test public void testRfcDecodedLen() {
@@ -179,9 +240,10 @@ public class Base85Test {
          }
       }
    }
-
-   @Test(expected = IllegalArgumentException.class) public void testZ85DecodeErr() {
-      z85D.decode( "\uffff" );
+   @Test public void testZ85DecodeErr() {
+      byte[] validCodes = z85E.getCharset().getBytes( US_ASCII );
+      byte[] invalidCodes = reverseCharset( validCodes );
+      recurTestInvalid( validCodes, invalidCodes, new byte[11], 0, z85D );
    }
 
    @Test public void testZ85DecodedLen() {

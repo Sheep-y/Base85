@@ -104,6 +104,21 @@ public class Base85 {
      * Decoder instances can be safely shared by multiple threads.
      */
    public static abstract class Decoder {
+      private final boolean[] validBytes;
+      private final int minValid, maxValid;
+
+      public Decoder() {
+         validBytes = new boolean[256];
+         int min = 255, max = 0;
+         for ( byte b : getEncoder().getCharset().getBytes( US_ASCII ) ) {
+            validBytes[ b ] = true;
+            if ( b < min ) min = b;
+            else if ( b > max ) max = b;
+         }
+         minValid = min;
+         maxValid = max;
+      }
+
       /** Calculate byte length of decoded data.
         *
         * @param encoded_data Encoded data in ascii charset
@@ -112,6 +127,14 @@ public class Base85 {
         * @return number of byte of decoded data
         */
       public int calcDecodedLength ( final byte[] encoded_data, final int offset, final int length ) {
+         if ( encoded_data != null ) {
+            final int max = encoded_data.length;
+            for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+               byte e = encoded_data[i];
+               if ( e < minValid || e > maxValid || ! validBytes[ e ] )
+                  throw new IllegalArgumentException( "Invalid Base85/" + getName() + " data at offset " + i );
+            }
+         }
          return (int) ( length * 0.8 );
       }
 
@@ -176,6 +199,7 @@ public class Base85 {
        */
       public abstract Encoder getEncoder();
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
+      protected abstract String getName();
    }
 
    private static abstract class SimpleEncoder extends Encoder {
@@ -236,7 +260,6 @@ public class Base85 {
 
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
-      protected abstract String getName();
 
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/" + getName() + " data length." );
