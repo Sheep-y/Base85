@@ -44,34 +44,37 @@ public class Base85Test {
       return result;
    }
 
-   private void recurTestInvalid ( byte[] ok, byte[] fail, byte[] buf, int offset, Decoder decoder ) {
+   private void recurTestValidate ( byte[] ok, byte[] fail, byte[] buf, int offset, Decoder decoder ) {
       if ( offset >= buf.length ) return;
       if ( ( offset + 1 ) % 5 == 1 )  {
          buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
-         testDecodeFail( buf, offset, decoder ); // Wrong data length should fails
-         recurTestInvalid( ok, fail, buf, offset + 1, decoder );
+         testValidateFail( buf, offset, decoder ); // Wrong data length should fails
+         recurTestValidate( ok, fail, buf, offset + 1, decoder );
          return;
       }
       for ( int i = 0, len = fail.length ; i < len ; i++ ) {
          buf[ offset ] = fail[ i ]; // Wrong data should also fails
-         testDecodeFail( buf, offset, decoder );
+         testValidateFail( buf, offset, decoder );
       }
       buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
-      decoder.decode( buf, 0, offset + 1 ); // Otherwise should pass
-      recurTestInvalid( ok, fail, buf, offset + 1, decoder );
+      if ( ! decoder.test( buf, 0, offset + 1 ) ) // Otherwise should pass
+         fail( failMessage( buf, -1, null ) );
+      recurTestValidate( ok, fail, buf, offset + 1, decoder );
    }
 
-   private void testDecodeFail ( byte[] buf, int len, Decoder decoder ) {
+   private void testValidateFail ( byte[] buf, int len, Decoder decoder ) {
       len++;
       try {
-         decoder.decode( buf, 0, len );
-         fail( failMessage( buf, len, null ) );
+         if ( decoder.test( buf, 0, len ) )
+            fail( failMessage( buf, len, null ) );
       } catch ( IllegalArgumentException ignored ) {
       } catch ( Exception ex ) { fail( failMessage( buf, len, ex ) ); }
    }
    private String failMessage ( byte[] buf, int len, Exception ex ) {
       if ( ex != null ) ex.printStackTrace();
-      return "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\") does not throw IllegalArgumentException on decode";
+      String data = "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\")";
+      if ( len >= 0 ) return data + " does not throw IllegalArgumentException when tested";
+      return data + " does not return true when tested";
    }
 
 
@@ -150,10 +153,16 @@ public class Base85Test {
          }
       }
    }
-   @Test public void testRfcDecodeErr() {
+   @Test(expected = IllegalArgumentException.class) public void testRfcDecodedFail() {
+      rfcD.decode( new byte[]{ 127, 127 } );
+   }
+   @Test(expected = IllegalArgumentException.class) public void testRfcDecodedFailNeg() {
+      rfcD.decode( new byte[]{ -1, -1 } );
+   }
+   @Test public void testRfcDecodeValidate() {
       byte[] validCodes = rfcE.getCharset().getBytes( US_ASCII );
       byte[] invalidCodes = reverseCharset( validCodes );
-      recurTestInvalid( validCodes, invalidCodes, new byte[11], 0, rfcD );
+      recurTestValidate( validCodes, invalidCodes, new byte[11], 0, rfcD );
    }
 
    @Test public void testRfcDecodedLen() {
@@ -240,10 +249,16 @@ public class Base85Test {
          }
       }
    }
-   @Test public void testZ85DecodeErr() {
+   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedFail() {
+      z85D.decode( new byte[]{ 127, 127 } );
+   }
+   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedFailNeg() {
+      z85D.decode( new byte[]{ -1, -1 } );
+   }
+   @Test public void testZ85DecodeValidate() {
       byte[] validCodes = z85E.getCharset().getBytes( US_ASCII );
       byte[] invalidCodes = reverseCharset( validCodes );
-      recurTestInvalid( validCodes, invalidCodes, new byte[11], 0, z85D );
+      recurTestValidate( validCodes, invalidCodes, new byte[11], 0, z85D );
    }
 
    @Test public void testZ85DecodedLen() {

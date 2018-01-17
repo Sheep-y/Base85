@@ -119,22 +119,40 @@ public class Base85 {
          maxValid = max;
       }
 
+      /** Test that given data can be decoded correctly.
+        * @param encoded_data Encoded data in ascii charset
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] encoded_data ) {
+         return test( encoded_data, 0, encoded_data.length );
+      }
+
+      /** Test that part of given data can be decoded correctly.
+        * @param encoded_data Encoded data in ascii charset
+        * @param offset byte offset that data starts
+        * @param length number of data bytes
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] encoded_data, final int offset, final int length ) {
+         if ( offset < 0 || length < 0 || offset + length > encoded_data.length )
+            throw new IllegalArgumentException();
+         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+            byte e = encoded_data[i];
+            if ( e < minValid || e > maxValid || ! validBytes[ e ] )
+               return false;
+         }
+         return true;
+      }
+
       /** Calculate byte length of decoded data.
-        *
         * @param encoded_data Encoded data in ascii charset
         * @param offset byte offset that data starts
         * @param length number of data bytes
         * @return number of byte of decoded data
         */
       public int calcDecodedLength ( final byte[] encoded_data, final int offset, final int length ) {
-         if ( encoded_data != null ) {
-            final int max = encoded_data.length;
-            for ( int i = offset, len = offset + length ; i < len ; i++ ) {
-               byte e = encoded_data[i];
-               if ( e < minValid || e > maxValid || ! validBytes[ e ] )
-                  throw new IllegalArgumentException( "Invalid Base85/" + getName() + " data at offset " + i );
-            }
-         }
          return (int) ( length * 0.8 );
       }
 
@@ -171,9 +189,13 @@ public class Base85 {
         */
       public final byte[] decode ( final byte[] data, final int offset, final int length ) {
          if ( offset < 0 || length < 0 || offset + length > data.length )
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException( "Incorrect offset/length" );
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
-         _decode( data, offset, length, result, 0 );
+         try {
+            _decode( data, offset, length, result, 0 );
+         } catch ( ArrayIndexOutOfBoundsException ex ) {
+            throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
+         }
          return result;
       }
 
@@ -190,7 +212,11 @@ public class Base85 {
          int size = calcDecodedLength( data, offset, length );
          if ( offset < 0 || length < 0 || out_offset < 0 || offset + length > data.length || out_offset + size > out.length )
             throw new IllegalArgumentException();
-         _decode( data, offset, length, out, out_offset );
+         try {
+            _decode( data, offset, length, out, out_offset );
+         } catch ( ArrayIndexOutOfBoundsException ex ) {
+            throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
+         }
          return size;
       }
 
@@ -261,6 +287,12 @@ public class Base85 {
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
 
+      @Override public boolean test( byte[] encoded_data, int offset, int length) {
+         if ( ! super.test( encoded_data, offset, length ) ) return false;
+         calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
+         return true;
+      }
+
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/" + getName() + " data length." );
          return super.calcDecodedLength( encoded_data, offset, length );
@@ -306,7 +338,7 @@ public class Base85 {
    }
 
    /** This class decodes data in the Base85 encoding scheme as described by IETF RFC 1924.
-     * Spaces and invalid characters won't be skipped, and will be regarded as '0'.
+     * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
      * Decoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924
      */
@@ -322,7 +354,7 @@ public class Base85 {
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
-     * Spaces and invalid characters won't be skipped, and will be regarded as '0'.
+     * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
      * Decoder instances can be safely shared by multiple threads.
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
