@@ -115,7 +115,93 @@ public class Base85Test {
    }
 
 
+   private final String[] z85Tests = {
+      "", "",
+      "A", "0+",
+      "AB", "2qK",
+      "ABC", "6@}s",
+      "ABCD", "k%^}b",
+      "ABCDE", "k%^}b0/",
+      "ABCDEF", "k%^}b2CS",
+      "ABCDEFG", "k%^}b7xvE",
+      "ABCDEFGH", "k%^}bmmG^r",
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#",
+         "fFLssg=mfIi5$zRv}od.xj#0]yIW<9z/xYpB98LFCx!yVk%^}bmmG^rnLhSHo?[FXqbQs(rArg6sZ0BfiX9v1aULrfcoKEudo*88ElY870z",
+      "測試中", ">d4IRSIX:^23",
+      "اختبارات", "/R^x8/S9P5/R^xb/R^x4",
+   };
 
+   @Test public void testZ85StrEncode() {
+      for ( int i = 0 ; i < z85Tests.length ; i += 2 )
+         assertEquals( "Encode " + z85Tests[i], z85Tests[i+1], z85E.encode( z85Tests[i] ) );
+   }
+   @Test public void testZ85StrDecode() {
+      for ( int i = 0 ; i < z85Tests.length ; i += 2 ) {
+         assertEquals( "Decode " + z85Tests[i+1], z85Tests[i], z85D.decode( z85Tests[i+1] ) );
+         assertArrayEquals( "Decode " + z85Tests[i+1] + " to bytes", z85Tests[i].getBytes( UTF_8 ), z85D.decode( z85Tests[i+1].getBytes( US_ASCII ) ) );
+      }
+   }
+   @Test public void testZ85Encode() {
+      String origStr = z85Tests[ z85Tests.length - 2 ], codeStr = z85Tests[ rfcTests.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertEquals( "encodeToString", codeStr, z85E.encodeToString( orig ) );
+      assertArrayEquals( "Byte to byte encode", code, z85E.encode( orig ) );
+      byte[] buf = Arrays.copyOf( orig, orig.length * 2 );
+      assertArrayEquals( "Byte to byte encode offset 0", code, z85E.encode( buf, 0, orig.length ) );
+      System.arraycopy( buf, 0, buf, 2, orig.length );
+      assertArrayEquals( "Byte to byte encode offset 2", code, z85E.encode( buf, 2, orig.length ) );
+      byte[] output = new byte[ code.length + 2 ];
+      z85E.encode( orig, 0, orig.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct encode offset 0", code, Arrays.copyOfRange( output, 0, code.length ) );
+      z85E.encode( buf, 2, orig.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
+   }
+   @Test public void testZ85Decode() {
+      String origStr = z85Tests[ z85Tests.length - 2 ], codeStr = z85Tests[ z85Tests.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertArrayEquals( "Byte to byte decode", orig, z85D.decode( code ) );
+      byte[] buf = Arrays.copyOf( code, code.length * 2 );
+      assertArrayEquals( "Byte to byte decode offset 0", orig, z85D.decode( buf, 0, code.length ) );
+      System.arraycopy( buf, 0, buf, 2, code.length );
+      assertArrayEquals( "Byte to byte decode offset 2", orig, z85D.decode( buf, 2, code.length ) );
+      byte[] output = new byte[ orig.length + 2 ];
+      z85D.decode( code, 0, code.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct decode offset 0", orig, Arrays.copyOfRange( output, 0, orig.length ) );
+      z85D.decode( buf, 2, code.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
+   }
+   @Test public void testZ85RoundTrip() {
+      for ( int len = 1 ; len <= 8 ; len++ ) {
+         final byte[] from = new byte[ len ];
+         for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
+            Arrays.fill( from, (byte) v );
+            assertArrayEquals( "byte[" + len + "]{" + v + "} round trip.", from, z85D.decode( z85E.encode( from ) ) );
+         }
+      }
+   }
+
+   @Test(expected = IllegalArgumentException.class) public void testZ85DecodeErr() {
+      z85D.decode( "\uffff" );
+   }
+
+   @Test public void testZ85DecodedLen() {
+      int[]  in = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 },
+            out = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 };
+      for ( int i = 0 ; i < in.length ; i++ )
+         assertEquals( "Decoded length of " + in[i] + " chars.", out[i], z85D.calcDecodedLength( null, 0, in[i] ) );
+   }
+   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr6() {
+      z85D.calcDecodedLength( null, 0, 6 );
+   }
+   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr1() {
+      z85D.calcDecodedLength( null, 0, 1 );
+   }
+   @Test public void testZ85EncodedLen() {
+      int[]  in = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 },
+            out = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 };
+      for ( int i = 0 ; i < in.length ; i++ )
+         assertEquals( "Encoded length of " + in[i] + " bytes.", out[i], z85E.calcEncodedLength( null, 0, in[i] ) );
+   }
    @Test public void testZ85Spec() {
       byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
       assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
