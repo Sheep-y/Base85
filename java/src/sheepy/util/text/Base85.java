@@ -3,7 +3,6 @@ package sheepy.util.text;
 import java.nio.ByteBuffer;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import java.util.Arrays;
 
 /**
  * Example: <br>
@@ -98,11 +97,6 @@ public class Base85 {
       }
 
       protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
-
-      /** Get the matching decoder.
-       * @return a matching decoder
-       */
-      public abstract Decoder getDecoder();
       protected abstract byte[] getEncodeMap();
       public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
    }
@@ -186,15 +180,12 @@ public class Base85 {
          return size;
       }
 
-      protected static int[] buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
-         int len = encodeMap.length;
-         byte[] set = Arrays.copyOf( encodeMap, len );
-         for ( byte i = 0 ; i < len ; i++ ) {
-            decodeMap[ set[ i ] ] = i;
-            validMap [ set[ i ] ] = true;
+      protected static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
+         for ( byte i = 0, len = (byte) encodeMap.length ; i < len ; i++ ) {
+            byte b = encodeMap[ i ];
+            decodeMap[ b ] = i;
+            validMap [ b ] = true;
          }
-         Arrays.sort( set );
-         return new int[]{ set[ 0 ], set[ len - 1 ] };
       }
 
       /** Test that given data can be decoded correctly.
@@ -215,22 +206,16 @@ public class Base85 {
         */
       public boolean test ( final byte[] encoded_data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
 
-      protected boolean _test( final byte[] encoded_data, final int offset, final int length, final int min, final int max, final boolean[] valids ) {
+      protected boolean _test( final byte[] encoded_data, final int offset, final int length, final boolean[] valids ) {
          if ( offset < 0 || length < 0 || offset + length > encoded_data.length )
             throw new IllegalArgumentException();
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
             byte e = encoded_data[i];
-            if ( e < min || e > max || ! valids[ e ] )
+            if ( e < 0 || ! valids[ e ] )
                return false;
          }
          return true;
       }
-
-
-      /** Get the matching encoder.
-       * @return a matching encoder
-       */
-      public abstract Encoder getEncoder();
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
       protected abstract String getName();
    }
@@ -245,11 +230,11 @@ public class Base85 {
             System.arraycopy( in, ri, buf, 0, 4 );
             ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = encodeMap[ (char) ( sum / Power5 ) ]; sum %= Power5;
-            out[wi+1] = encodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4;
-            out[wi+2] = encodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3;
-            out[wi+3] = encodeMap[ (char) ( sum / 85 ) ];
-            out[wi+4] = encodeMap[ (char) ( sum % 85 ) ];
+            out[wi  ] = encodeMap[ (int) ( sum / Power5 ) ]; sum %= Power5;
+            out[wi+1] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+            out[wi+2] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+            out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
+            out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
             wi += 5;
          }
          rlen %= 4;
@@ -258,11 +243,11 @@ public class Base85 {
          for ( int i = 0 ; i < rlen ; i++ )
             sum = ( sum << 8 ) + ( in[ri+i] & 0xff );
          switch ( rlen ) {
-            case 3: out[wi] = encodeMap[ (char) ( sum / Power4 ) ]; sum %= Power4; ++wi;
-            case 2: out[wi] = encodeMap[ (char) ( sum / Power3 ) ]; sum %= Power3; ++wi;
+            case 3: out[wi++] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+            case 2: out[wi++] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
          }
-         out[wi  ] = encodeMap[ (char) ( sum / 85 ) ];
-         out[wi+1] = encodeMap[ (char) ( sum % 85 ) ];
+         out[wi  ] = encodeMap[ (int) ( sum / 85 ) ];
+         out[wi+1] = encodeMap[ (int) ( sum % 85 ) ];
          return loop * 5 + rlen + 1;
       }
    }
@@ -276,7 +261,6 @@ public class Base85 {
    public static class Rfc1924Encoder extends SimpleEncoder {
       private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return EncodeMap; }
-      @Override public Decoder getDecoder() { return getRfc1942Decoder(); }
    }
 
    /** This class encodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -288,14 +272,13 @@ public class Base85 {
    public static class Z85Encoder extends SimpleEncoder {
       private static final byte[] EncodeMap = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return EncodeMap; }
-      @Override public Decoder getDecoder() { return getZ85Decoder(); }
    }
 
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
 
-      @Override protected boolean _test( byte[] encoded_data, int offset, int length, int min, int max, boolean[] valids ) {
-         if ( ! super._test( encoded_data, offset, length, min, max, valids ) ) return false;
+      @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
+         if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
          calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
          return true;
       }
@@ -336,9 +319,9 @@ public class Base85 {
             default: throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
          }
          switch ( rlen ) {
-            case 3: out[wi] = (byte) ( sum >>> 16 ); ++wi;
-            case 2: out[wi] = (byte) ( sum >>> 8  ); ++wi;
-            case 1: out[wi] = (byte) sum;
+            case 3: out[wi++] = (byte)( sum >>> 16 );
+            case 2: out[wi++] = (byte)( sum >>> 8  );
+            case 1: out[wi  ] = (byte)  sum;
          }
          return loop * 4 + rlen;
       }
@@ -350,18 +333,14 @@ public class Base85 {
      * @see https://tools.ietf.org/html/rfc1924
      */
    public static class Rfc1924Decoder extends SimpleDecoder {
-      @Override public Encoder getEncoder() { return getRfc1942Encoder(); }
       private static final byte[] DecodeMap = new byte[127];
       private static final boolean[] ValidBytes = new boolean[255];
-      private static final int minValid, maxValid;
       static {
-         int[] minMax = buildDecodeMap( Rfc1924Encoder.EncodeMap, DecodeMap, ValidBytes );
-         minValid = minMax[ 0 ];
-         maxValid = minMax[ 1 ];
+         buildDecodeMap( Rfc1924Encoder.EncodeMap, DecodeMap, ValidBytes );
       }
       @Override protected String getName() { return "RFC1924"; }
       @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, minValid, maxValid, ValidBytes ); }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, ValidBytes ); }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -370,18 +349,14 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Decoder extends SimpleDecoder {
-      @Override public Encoder getEncoder() { return getZ85Encoder(); }
       private static final byte[] DecodeMap = new byte[126];
       private static final boolean[] ValidBytes = new boolean[255];
-      private static final int minValid, maxValid;
       static {
-         int[] minMax = buildDecodeMap( Z85Encoder.EncodeMap, DecodeMap, ValidBytes );
-         minValid = minMax[ 0 ];
-         maxValid = minMax[ 1 ];
+         buildDecodeMap( Z85Encoder.EncodeMap, DecodeMap, ValidBytes );
       }
       @Override protected String getName() { return "Z85"; }
       @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, minValid, maxValid, ValidBytes ); }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, ValidBytes ); }
    }
 
    private static Encoder RFC1924ENCODER;
