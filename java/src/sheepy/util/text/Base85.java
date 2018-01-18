@@ -3,14 +3,21 @@ package sheepy.util.text;
 import java.nio.ByteBuffer;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.Arrays;
 
+/**
+ * Example: <br>
+ * <code> String encodedString = Base85.getZ85Encoder().encodeToString( byteArray ); <br>
+ * byte[] data = Base85.getZ85Decoder().decodeToBytes( encodedString );</code>
+ */
 public class Base85 {
    // Constants used in encoding and decoding
    private static final long Power5 = 52200625; // 85^5
    private static final long Power4 = 614125;  // 85^4
    private static final long Power3 = 7225;   // 85^3
 
-   /** This is a skeleton class for encoding data using the Base85 encoding scheme.
+   /** This is a skeleton class for encoding data using the Base85 encoding scheme,
+     * in the same style as Base64 encoder.
      * Encoder instances can be safely shared by multiple threads.
      */
    public static abstract class Encoder {
@@ -101,51 +108,10 @@ public class Base85 {
    }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
+     * in the same style as Base64 encoder.
      * Decoder instances can be safely shared by multiple threads.
      */
    public static abstract class Decoder {
-      private final boolean[] validBytes;
-      private final int minValid, maxValid;
-
-      public Decoder() {
-         validBytes = new boolean[256];
-         int min = 255, max = 0;
-         for ( byte b : getEncoder().getCharset().getBytes( US_ASCII ) ) {
-            validBytes[ b ] = true;
-            if ( b < min ) min = b;
-            else if ( b > max ) max = b;
-         }
-         minValid = min;
-         maxValid = max;
-      }
-
-      /** Test that given data can be decoded correctly.
-        * @param encoded_data Encoded data in ascii charset
-        * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
-        */
-      public boolean test ( final byte[] encoded_data ) {
-         return test( encoded_data, 0, encoded_data.length );
-      }
-
-      /** Test that part of given data can be decoded correctly.
-        * @param encoded_data Encoded data in ascii charset
-        * @param offset byte offset that data starts
-        * @param length number of data bytes
-        * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
-        */
-      public boolean test ( final byte[] encoded_data, final int offset, final int length ) {
-         if ( offset < 0 || length < 0 || offset + length > encoded_data.length )
-            throw new IllegalArgumentException();
-         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
-            byte e = encoded_data[i];
-            if ( e < minValid || e > maxValid || ! validBytes[ e ] )
-               return false;
-         }
-         return true;
-      }
-
       /** Calculate byte length of decoded data.
         * @param encoded_data Encoded data in ascii charset
         * @param offset byte offset that data starts
@@ -220,6 +186,47 @@ public class Base85 {
          return size;
       }
 
+      protected static int[] buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
+         int len = encodeMap.length;
+         byte[] set = Arrays.copyOf( encodeMap, len );
+         for ( byte i = 0 ; i < len ; i++ ) {
+            decodeMap[ set[ i ] ] = i;
+            validMap [ set[ i ] ] = true;
+         }
+         Arrays.sort( set );
+         return new int[]{ set[ 0 ], set[ len - 1 ] };
+      }
+
+      /** Test that given data can be decoded correctly.
+        * @param encoded_data Encoded data in ascii charset
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] encoded_data ) {
+         return test( encoded_data, 0, encoded_data.length );
+      }
+
+      /** Test that part of given data can be decoded correctly.
+        * @param encoded_data Encoded data in ascii charset
+        * @param offset byte offset that data starts
+        * @param length number of data bytes
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] encoded_data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
+
+      protected boolean _test( final byte[] encoded_data, final int offset, final int length, final int min, final int max, final boolean[] valids ) {
+         if ( offset < 0 || length < 0 || offset + length > encoded_data.length )
+            throw new IllegalArgumentException();
+         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+            byte e = encoded_data[i];
+            if ( e < min || e > max || ! valids[ e ] )
+               return false;
+         }
+         return true;
+      }
+
+
       /** Get the matching encoder.
        * @return a matching encoder
        */
@@ -287,8 +294,8 @@ public class Base85 {
    private static abstract class SimpleDecoder extends Decoder {
       protected abstract byte[] getDecodeMap();
 
-      @Override public boolean test( byte[] encoded_data, int offset, int length) {
-         if ( ! super.test( encoded_data, offset, length ) ) return false;
+      @Override protected boolean _test( byte[] encoded_data, int offset, int length, int min, int max, boolean[] valids ) {
+         if ( ! super._test( encoded_data, offset, length, min, max, valids ) ) return false;
          calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
          return true;
       }
@@ -345,12 +352,16 @@ public class Base85 {
    public static class Rfc1924Decoder extends SimpleDecoder {
       @Override public Encoder getEncoder() { return getRfc1942Encoder(); }
       private static final byte[] DecodeMap = new byte[127];
+      private static final boolean[] ValidBytes = new boolean[255];
+      private static final int minValid, maxValid;
       static {
-         for ( int i = 0 ; i < 85 ; ++i )
-            DecodeMap[ Rfc1924Encoder.EncodeMap[i] ] = (byte) i;
+         int[] minMax = buildDecodeMap( Rfc1924Encoder.EncodeMap, DecodeMap, ValidBytes );
+         minValid = minMax[ 0 ];
+         maxValid = minMax[ 1 ];
       }
-      @Override protected byte[] getDecodeMap() { return DecodeMap; }
       @Override protected String getName() { return "RFC1924"; }
+      @Override protected byte[] getDecodeMap() { return DecodeMap; }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, minValid, maxValid, ValidBytes ); }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -361,12 +372,16 @@ public class Base85 {
    public static class Z85Decoder extends SimpleDecoder {
       @Override public Encoder getEncoder() { return getZ85Encoder(); }
       private static final byte[] DecodeMap = new byte[126];
+      private static final boolean[] ValidBytes = new boolean[255];
+      private static final int minValid, maxValid;
       static {
-         for ( int i = 0 ; i < 85 ; ++i )
-            DecodeMap[ Z85Encoder.EncodeMap[i] ] = (byte) i;
+         int[] minMax = buildDecodeMap( Z85Encoder.EncodeMap, DecodeMap, ValidBytes );
+         minValid = minMax[ 0 ];
+         maxValid = minMax[ 1 ];
       }
-      @Override protected byte[] getDecodeMap() { return DecodeMap; }
       @Override protected String getName() { return "Z85"; }
+      @Override protected byte[] getDecodeMap() { return DecodeMap; }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, minValid, maxValid, ValidBytes ); }
    }
 
    private static Encoder RFC1924ENCODER;
