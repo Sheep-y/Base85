@@ -15,6 +15,11 @@ public class Base85 {
    private static final long Power4 = 614125;  // 85^4
    private static final long Power3 = 7225;   // 85^3
 
+   private static void checkBounds ( byte[] data, int offset, int length ) {
+      if ( offset < 0 || length < 0 || offset + length > data.length )
+         throw new IllegalArgumentException();
+   }
+
    /** This is a skeleton class for encoding data using the Base85 encoding scheme,
      * in the same style as Base64 encoder.
      * Encoder instances can be safely shared by multiple threads.
@@ -73,8 +78,7 @@ public class Base85 {
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
         */
       public final byte[] encode ( final byte[] data, final int offset, final int length ) {
-         if ( offset < 0 || length < 0 || offset + length > data.length )
-            throw new IllegalArgumentException();
+         checkBounds( data, offset, length );
          byte[] out = new byte[ calcEncodedLength( data, offset, length ) ];
          _encode( data, offset, length, out, 0 );
          return out;
@@ -91,8 +95,8 @@ public class Base85 {
         */
       public final int encode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
          int size = calcEncodedLength( data, offset, length );
-         if ( offset < 0 || length < 0 || out_offset < 0 || offset + length > data.length || out_offset + size > out.length )
-            throw new IllegalArgumentException();
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
          return _encode( data, offset, length, out, out_offset );
       }
 
@@ -148,8 +152,7 @@ public class Base85 {
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
         */
       public final byte[] decode ( final byte[] data, final int offset, final int length ) {
-         if ( offset < 0 || length < 0 || offset + length > data.length )
-            throw new IllegalArgumentException( "Incorrect offset/length" );
+         checkBounds( data, offset, length );
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
          try {
             _decode( data, offset, length, result, 0 );
@@ -170,8 +173,8 @@ public class Base85 {
         */
       public final int decode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
          int size = calcDecodedLength( data, offset, length );
-         if ( offset < 0 || length < 0 || out_offset < 0 || offset + length > data.length || out_offset + size > out.length )
-            throw new IllegalArgumentException();
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
          try {
             _decode( data, offset, length, out, out_offset );
          } catch ( ArrayIndexOutOfBoundsException ex ) {
@@ -189,28 +192,27 @@ public class Base85 {
       }
 
       /** Test that given data can be decoded correctly.
-        * @param encoded_data Encoded data in ascii charset
+        * @param data Encoded data in ascii charset
         * @return true if data is of correct length and composed of correct characters
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
-      public boolean test ( final byte[] encoded_data ) {
-         return test( encoded_data, 0, encoded_data.length );
+      public boolean test ( final byte[] data ) {
+         return test( data, 0, data.length );
       }
 
       /** Test that part of given data can be decoded correctly.
-        * @param encoded_data Encoded data in ascii charset
+        * @param data Encoded data in ascii charset
         * @param offset byte offset that data starts
         * @param length number of data bytes
         * @return true if data is of correct length and composed of correct characters
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
-      public boolean test ( final byte[] encoded_data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
+      public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
 
-      protected boolean _test( final byte[] encoded_data, final int offset, final int length, final boolean[] valids ) {
-         if ( offset < 0 || length < 0 || offset + length > encoded_data.length )
-            throw new IllegalArgumentException();
+      protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
+         checkBounds( data, offset, length );
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
-            byte e = encoded_data[i];
+            byte e = data[i];
             if ( e < 0 || ! valids[ e ] )
                return false;
          }
