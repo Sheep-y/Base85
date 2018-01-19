@@ -98,7 +98,9 @@ public class Base85Test {
 
    @Test public void testRfcSpec() throws UnknownHostException {
       byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
-      assertEquals( "Inet encode", "4)+k&C#VzJ4br>0wv%Yp", new String( rfcE.encodeBlockReverse( addr ), US_ASCII ) );
+      String encoded = "4)+k&C#VzJ4br>0wv%Yp";
+      assertEquals( "Inet encode", encoded, new String( rfcE.encodeBlockReverse( addr ), US_ASCII ) );
+      assertArrayEquals( "Inet encode", addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ) ) );
    }
 
    @Test public void testRfcStrEncode() {

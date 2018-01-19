@@ -97,12 +97,9 @@ public class Base85 {
          return _encode( data, offset, length, out, out_offset );
       }
 
-      protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
-      protected abstract byte[] getEncodeMap();
-      public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
-
       /** Encode the data as one block in reverse output order.
-        * This is the strict algorithm specified by RFC 1924 for IP address bytes.
+        * This is the strict algorithm specified by RFC 1924 for IP address encoding,
+        * when the data is exactly 16 bytes (128 bits) long.
         * Because the whole input data is encoded as one big block,
         * this is much less efficient than the more common encodings.
         * @see https://tools.ietf.org/html/rfc1924
@@ -117,7 +114,8 @@ public class Base85 {
       }
 
       /** Encode part of data as one block in reverse output order into output array.
-        * This is the strict algorithm specified by RFC 1924 for IP address bytes.
+        * This is the strict algorithm specified by RFC 1924 for IP address encoding,
+        * when the data part is exactly 16 bytes (128 bits) long.
         * Because the whole input data part is encoded as one big block,
         * this is much less efficient than the more common encodings.
         * @see https://tools.ietf.org/html/rfc1924
@@ -143,6 +141,10 @@ public class Base85 {
          }
          return size;
       }
+
+      protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
+      protected abstract byte[] getEncodeMap();
+      public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
    }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
@@ -196,9 +198,7 @@ public class Base85 {
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
          try {
             _decode( data, offset, length, result, 0 );
-         } catch ( ArrayIndexOutOfBoundsException ex ) {
-            throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
-         }
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
          return result;
       }
 
@@ -217,9 +217,46 @@ public class Base85 {
          checkBounds( out, out_offset, size );
          try {
             _decode( data, offset, length, out, out_offset );
-         } catch ( ArrayIndexOutOfBoundsException ex ) {
-            throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
-         }
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
+         return size;
+      }
+
+      /** Decode the data as one block in reverse input order.
+        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
+        * when the data is exactly 16 bytes (128 bits) long.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data Byte data to encode
+        * @return Encoded data in ascii encoding
+        */
+      public byte[] decodeBlockReverse ( byte[] data ) {
+         int size = Math.max( 0, (int) Math.ceil( data.length * 0.8 ) );
+         byte[] result = new byte[ size ];
+         decodeBlockReverse ( data, 0, data.length, result, 0 );
+         return result;
+      }
+
+      /** Decode part of data as one block in reverse input order into output array.
+        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
+        * when the data part is exactly 16 bytes (128 bits) long.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data array to read data from
+        * @param offset byte offset to start reading data
+        * @param length number of byte to read
+        * @param out array to write decoded data to
+        * @param out_offset byte offset to start writing decoded data to
+        * @return number of decoded bytes
+        */
+      public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
+         int size = (int) Math.ceil( length * 0.8 );
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
+         BigInteger blockSum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
+         byte[] map = getDecodeMap();
+         try {
+            for ( int i = offset, len = offset + length ; i < len ; i++ )
+               blockSum = blockSum.multiply( b85 ).add( BigInteger.valueOf( map[ data[ i ] ] ) );
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
+         System.arraycopy( blockSum.toByteArray(), 0, out, out_offset, size );
          return size;
       }
 
@@ -250,7 +287,13 @@ public class Base85 {
          }
          return true;
       }
+
+      protected RuntimeException throwMalformed ( Exception ex ) {
+         throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data", ex );
+      }
+
       protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
+      protected abstract byte[] getDecodeMap();
       protected abstract String getName();
    }
 
@@ -310,8 +353,6 @@ public class Base85 {
    }
 
    private static abstract class SimpleDecoder extends Decoder {
-      protected abstract byte[] getDecodeMap();
-
       @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
          if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
          calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
@@ -351,7 +392,7 @@ public class Base85 {
             case 3: sum = data[0]*Power4 + data[1]*Power3 + data[2]*85 + data[3]; break;
             case 2: sum = data[0]*Power3 + data[1]*85 + data[2]; break;
             case 1: sum = data[0]*85 + data[1]; break;
-            default: throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
+            default: throw throwMalformed( null );
          }
          switch ( rlen ) {
             case 3: out[wi++] = (byte)( sum >>> 16 );
