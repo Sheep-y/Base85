@@ -1,8 +1,10 @@
 package sheepy.util.text;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.Arrays;
 
 /**
  * Example: <br>
@@ -98,7 +100,50 @@ public class Base85 {
       protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
       protected abstract byte[] getEncodeMap();
       public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
+
+      /** Encode the data as one block in reverse output order.
+        * This is the strict algorithm specified by RFC 1924 for IP address bytes.
+        * Because the whole input data is encoded as one big block,
+        * this is much less efficient than the more common encodings.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data Byte data to encode
+        * @return Encoded data in ascii encoding
+        */
+      public byte[] encodeBlockReverse ( byte[] data ) {
+         int size = Math.max( 0, (int) Math.ceil( data.length * 1.25 ) );
+         byte[] result = new byte[ size ];
+         encodeBlockReverse ( data, 0, data.length, result, 0 );
+         return result;
       }
+
+      /** Encode part of data as one block in reverse output order into output array.
+        * This is the strict algorithm specified by RFC 1924 for IP address bytes.
+        * Because the whole input data part is encoded as one big block,
+        * this is much less efficient than the more common encodings.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data array to read data from
+        * @param offset byte offset to start reading data
+        * @param length number of byte to read
+        * @param out array to write encoded data to
+        * @param out_offset byte offset to start writing encoded data to
+        * @return number of encoded bytes
+        */
+      public int encodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
+         int size = (int) Math.ceil( length * 1.25 );
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
+         if ( offset != 0 || length != data.length )
+            data = Arrays.copyOfRange( data, offset, offset + length );
+         BigInteger blockSum = new BigInteger( 1, data ), b85 = BigInteger.valueOf( 85 );
+         byte[] map = getEncodeMap();
+         for ( int i = size + out_offset - 1 ; i >= out_offset ; i-- ) {
+            BigInteger[] mod = blockSum.divideAndRemainder( b85 );
+            out[ i ] = map[ mod[1].intValue() ];
+            blockSum = mod[0];
+         }
+         return size;
+      }
+   }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
      * in the same style as Base64 encoder.
@@ -241,7 +286,8 @@ public class Base85 {
       }
    }
 
-   /** This class encodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+   /** This class encodes data in the Base85 encoding scheme using the character set described by IETF RFC 1924,
+     * but in the efficient algorithm of Ascii85 and Z85.
      * This scheme does not use quotes, comma, or slash, and can usually be used in sql, json, csv etc. without escaping.
      *
      * Encoder instances can be safely shared by multiple threads.
@@ -316,7 +362,8 @@ public class Base85 {
       }
    }
 
-   /** This class decodes data in the Base85 encoding scheme as described by IETF RFC 1924.
+   /** This class decodes data in the Base85 encoding using the character set described by IETF RFC 1924,
+     * in the efficient algorithm of Ascii85 and Z85.
      * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
      * Decoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924

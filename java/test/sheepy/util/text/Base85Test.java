@@ -98,11 +98,7 @@ public class Base85Test {
 
    @Test public void testRfcSpec() throws UnknownHostException {
       byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
-      assertArrayEquals( "Inet round trip", addr, rfcD.decode( rfcE.encode( addr ) ) );
-//      byte[] decoded = rfcD.decodeToBytes( "4)+k&C#VzJ4br>0wv%Yp" );
-//      System.out.println( rfcE.encodeToString( addr ) );
-//      for ( byte b : decoded )
-//         System.out.print( Integer.toHexString( ( (int) b ) & 0xff ) );
+      assertEquals( "Inet encode", "4)+k&C#VzJ4br>0wv%Yp", new String( rfcE.encodeBlockReverse( addr ), US_ASCII ) );
    }
 
    @Test public void testRfcStrEncode() {
