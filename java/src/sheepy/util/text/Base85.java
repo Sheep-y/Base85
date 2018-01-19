@@ -15,11 +15,6 @@ public class Base85 {
    private static final long Power4 = 614125;  // 85^4
    private static final long Power3 = 7225;   // 85^3
 
-   private static void checkBounds ( byte[] data, int offset, int length ) {
-      if ( offset < 0 || length < 0 || offset + length > data.length )
-         throw new IllegalArgumentException();
-   }
-
    /** This is a skeleton class for encoding data using the Base85 encoding scheme,
      * in the same style as Base64 encoder.
      * Encoder instances can be safely shared by multiple threads.
@@ -103,7 +98,7 @@ public class Base85 {
       protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
       protected abstract byte[] getEncodeMap();
       public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
-   }
+      }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
      * in the same style as Base64 encoder.
@@ -111,12 +106,12 @@ public class Base85 {
      */
    public static abstract class Decoder {
       /** Calculate byte length of decoded data.
-        * @param encoded_data Encoded data in ascii charset
+        * @param data Encoded data in ascii charset
         * @param offset byte offset that data starts
         * @param length number of data bytes
         * @return number of byte of decoded data
         */
-      public int calcDecodedLength ( final byte[] encoded_data, final int offset, final int length ) {
+      public int calcDecodedLength ( final byte[] data, final int offset, final int length ) {
          return (int) ( length * 0.8 );
       }
 
@@ -181,14 +176,6 @@ public class Base85 {
             throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data" );
          }
          return size;
-      }
-
-      protected static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
-         for ( byte i = 0, len = (byte) encodeMap.length ; i < len ; i++ ) {
-            byte b = encodeMap[ i ];
-            decodeMap[ b ] = i;
-            validMap [ b ] = true;
-         }
       }
 
       /** Test that given data can be decoded correctly.
@@ -359,6 +346,19 @@ public class Base85 {
       @Override protected String getName() { return "Z85"; }
       @Override protected byte[] getDecodeMap() { return DecodeMap; }
       @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, ValidBytes ); }
+   }
+
+   private static void checkBounds ( byte[] data, int offset, int length ) {
+      if ( offset < 0 || length < 0 || offset + length > data.length )
+         throw new IllegalArgumentException();
+   }
+
+   private static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
+      for ( byte i = 0, len = (byte) encodeMap.length ; i < len ; i++ ) {
+         byte b = encodeMap[ i ];
+         decodeMap[ b ] = i;
+         validMap [ b ] = true;
+      }
    }
 
    private static Encoder RFC1924ENCODER;
