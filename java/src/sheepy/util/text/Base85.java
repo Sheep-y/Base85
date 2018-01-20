@@ -337,8 +337,8 @@ public class Base85 {
      * @see https://tools.ietf.org/html/rfc1924
      */
    public static class Rfc1924Encoder extends SimpleEncoder {
-      private static final byte[] EncodeMap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
-      @Override protected byte[] getEncodeMap() { return EncodeMap; }
+      private static final byte[] ENCODE_MAP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
+      @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
    }
 
    /** This class encodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -348,8 +348,8 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Encoder extends SimpleEncoder {
-      private static final byte[] EncodeMap = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
-      @Override protected byte[] getEncodeMap() { return EncodeMap; }
+      private static final byte[] ENCODE_MAP = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
+      @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
    }
 
    private static abstract class SimpleDecoder extends Decoder {
@@ -375,10 +375,7 @@ public class Base85 {
                                       decodeMap[ in[ri+3] ] * 85 +
                                       decodeMap[ in[ri+4] ] ) );
             ri += 5;
-            out[wi  ] = buf[0];
-            out[wi+1] = buf[1];
-            out[wi+2] = buf[2];
-            out[wi+3] = buf[3];
+            System.arraycopy( buf, 0, out, wi, 4 );
             wi += 4;
          }
          rlen %= 5;
@@ -410,14 +407,14 @@ public class Base85 {
      * @see https://tools.ietf.org/html/rfc1924
      */
    public static class Rfc1924Decoder extends SimpleDecoder {
-      private static final byte[] DecodeMap = new byte[127];
-      private static final boolean[] ValidBytes = new boolean[255];
+      private static final byte[] DECODE_MAP = new byte[127];
+      private static final boolean[] VALID_BYTES = new boolean[255];
       static {
-         buildDecodeMap( Rfc1924Encoder.EncodeMap, DecodeMap, ValidBytes );
+         buildDecodeMap( Rfc1924Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
       }
       @Override protected String getName() { return "RFC1924"; }
-      @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, ValidBytes ); }
+      @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, VALID_BYTES ); }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -426,14 +423,14 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Decoder extends SimpleDecoder {
-      private static final byte[] DecodeMap = new byte[126];
-      private static final boolean[] ValidBytes = new boolean[255];
+      private static final byte[] DECODE_MAP = new byte[126];
+      private static final boolean[] VALID_BYTES = new boolean[255];
       static {
-         buildDecodeMap( Z85Encoder.EncodeMap, DecodeMap, ValidBytes );
+         buildDecodeMap( Z85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
       }
       @Override protected String getName() { return "Z85"; }
-      @Override protected byte[] getDecodeMap() { return DecodeMap; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, ValidBytes ); }
+      @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, VALID_BYTES ); }
    }
 
    private static void checkBounds ( byte[] data, int offset, int length ) {
