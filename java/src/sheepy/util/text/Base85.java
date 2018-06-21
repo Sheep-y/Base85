@@ -15,9 +15,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class Base85 {
    // Constants used in encoding and decoding
-   private static final long Power5 = 52200625; // 85^5
-   private static final long Power4 = 614125;  // 85^4
-   private static final long Power3 = 7225;   // 85^3
+   private static final long Power4 = 52200625; // 85^4
+   private static final long Power3 = 614125;  // 85^3
+   private static final long Power2 = 7225;   // 85^2
 
    /** This is a skeleton class for encoding data using the Base85 encoding scheme,
      * in the same style as Base64 encoder.
@@ -79,8 +79,9 @@ public class Base85 {
       public final byte[] encode ( final byte[] data, final int offset, final int length ) {
          checkBounds( data, offset, length );
          byte[] out = new byte[ calcEncodedLength( data, offset, length ) ];
-         _encode( data, offset, length, out, 0 );
-         return out;
+         int len = _encode( data, offset, length, out, 0 );
+         if ( out.length == len ) return out;
+         return Arrays.copyOf( out, len );
       }
 
       /** Encode part of a byte array and write the output into a byte array in ASCII charset.
@@ -233,7 +234,7 @@ public class Base85 {
       public byte[] decodeBlockReverse ( byte[] data ) {
          int size = Math.max( 0, (int) Math.ceil( data.length * 0.8 ) );
          byte[] result = new byte[ size ];
-         decodeBlockReverse( data, 0, data.length, result, 0 );
+         decodeBlockReverse ( data, 0, data.length, result, 0 );
          return result;
       }
 
@@ -280,7 +281,7 @@ public class Base85 {
         */
       public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
 
-      protected boolean _test ( final byte[] data, final int offset, final int length, final boolean[] valids ) {
+      protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
          checkBounds( data, offset, length );
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
             byte e = data[i];
@@ -299,6 +300,7 @@ public class Base85 {
       protected abstract String getName();
    }
 
+   /* An encoder that does not support compression */
    private static abstract class SimpleEncoder extends Encoder {
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
@@ -309,24 +311,25 @@ public class Base85 {
             System.arraycopy( in, ri, buf, 0, 4 );
             ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = encodeMap[ (int) ( sum / Power5 ) ]; sum %= Power5;
-            out[wi+1] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-            out[wi+2] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+            out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+            out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+            out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
             out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
             out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
             wi += 5;
          }
          rlen %= 4;
          if ( rlen == 0 ) return loop * 5;
-         sum = 0;
-         for ( int i = 0 ; i < rlen ; i++ )
-            sum = ( sum << 8 ) + ( in[ri+i] & 0xff );
-         switch ( rlen ) {
-            case 3: out[wi++] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-            case 2: out[wi++] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+         buffer.putInt( 0, 0 );
+         System.arraycopy( in, ri, buf, 0, rlen );
+         sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
+         out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+         out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+         if ( rlen >= 2 ) {
+            out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
+            if ( rlen >= 3 )
+               out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
          }
-         out[wi  ] = encodeMap[ (int) ( sum / 85 ) ];
-         out[wi+1] = encodeMap[ (int) ( sum % 85 ) ];
          return loop * 5 + rlen + 1;
       }
    }
@@ -352,6 +355,88 @@ public class Base85 {
    public static class Z85Encoder extends SimpleEncoder {
       private static final byte[] ENCODE_MAP = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
+   }
+
+   /** This class encodes data in the Ascii85 encoding scheme as defined by Adobe.
+     * Supports "z" and "y" compression, which can be disabled individually.
+     * Line break is not supported.
+     *
+     * Encoder instances can be safely shared by multiple threads.
+     * @see https://en.wikipedia.org/wiki/Ascii85
+     */
+   public static class Ascii85Encoder extends SimpleEncoder {
+      private static final byte[] ENCODE_MAP = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu".getBytes( US_ASCII );
+      @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
+
+      @Override public int calcEncodedLength ( byte[] data, int offset, int length ) {
+         return super.calcEncodedLength( data, offset, length ) + 4;
+      }
+
+      private boolean useZ = true;
+      private boolean useY = true;
+      /** Set whether to enable encoding of four zeros into "z".
+       *  @param compress true to enable, false to disable
+       */
+      public synchronized void setZeroCompression( boolean compress ) { useZ = compress; }
+      /** Get zero compression status.
+       * @return true if enabled, false if disabled
+       */
+      public synchronized boolean getZeroCompression() { return useZ; }
+      /** Set whether to enable encoding of four spaces into "y".*
+       *  @param compress true to enable, false to disable
+       */
+      public synchronized void setSpaceCompression( boolean compress ) { useY = compress; }
+      /** Get space compression status.
+       * @return true if enabled, false if disabled
+       */
+      public synchronized boolean getSpaceCompression() { return useY; }
+
+      @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
+         boolean z = true, y = true;
+         synchronized ( this ) { z = useZ; y = useY; }
+         long sum;
+         final int loop = rlen / 4;
+         final ByteBuffer buffer = ByteBuffer.allocate( 4 );
+         final byte[] buf = buffer.array();
+         out[wi++] = '<';
+         out[wi++] = '~';
+         for ( int i = loop ; i > 0 ; i-- ) {
+            System.arraycopy( in, ri, buf, 0, 4 );
+            ri += 4;
+            sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
+            if ( z && sum == 0 ) {
+               out[wi++] = 'z';
+
+            } else if ( y && sum == 0x20202020 ) {
+               out[wi++] = 'y';
+
+            } else {
+               out[wi  ] = (byte)(( sum / Power4 )+33); sum %= Power4;
+               out[wi+1] = (byte)(( sum / Power3 )+33); sum %= Power3;
+               out[wi+2] = (byte)(( sum / Power2 )+33); sum %= Power2;
+               out[wi+3] = (byte)(( sum / 85 )+33);
+               out[wi+4] = (byte)(( sum % 85 )+33);
+               wi += 5;
+            }
+         }
+         rlen %= 4;
+         if ( rlen != 0 ) {
+            buffer.putInt( 0, 0 );
+            System.arraycopy( in, ri, buf, 0, rlen );
+            sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
+            out[wi  ] = (byte)(( sum / Power4 )+33); sum %= Power4;
+            out[wi+1] = (byte)(( sum / Power3 )+33); sum %= Power3;
+            if ( rlen >= 2 ) {
+               out[wi+2] = (byte)(( sum / Power2 )+33); sum %= Power2;
+               if ( rlen >= 3 )
+                  out[wi+3] = (byte)(( sum / 85 )+33);
+            }
+            wi += rlen + 1;
+         }
+         out[wi++] = '~';
+         out[wi  ] = '>';
+         return loop * 5 + rlen + 5;
+      }
    }
 
    /** This class encodes data in the Base85 encoding scheme with a custom character set.
@@ -422,9 +507,9 @@ public class Base85 {
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
          for ( int i = loop ; i > 0 ; i-- ) {
-            buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power5 +
-                                      decodeMap[ in[ri+1] ] * Power4 +
-                                      decodeMap[ in[ri+2] ] * Power3 +
+            buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power4 +
+                                      decodeMap[ in[ri+1] ] * Power3 +
+                                      decodeMap[ in[ri+2] ] * Power2 +
                                       decodeMap[ in[ri+3] ] * 85 +
                                       decodeMap[ in[ri+4] ] ) );
             ri += 5;
@@ -433,22 +518,18 @@ public class Base85 {
          }
          rlen %= 5;
          if ( rlen == 0 ) return loop * 4;
-         final byte[] data = new byte[rlen];
-         --rlen;
-         for ( int i = rlen ; i >= 0 ; i-- )
-            data[i] = decodeMap[ in[ri+i] ];
-         long sum;
-         switch ( rlen ) {
-            case 3: sum = data[0]*Power4 + data[1]*Power3 + data[2]*85 + data[3]; break;
-            case 2: sum = data[0]*Power3 + data[1]*85 + data[2]; break;
-            case 1: sum = data[0]*85 + data[1]; break;
-            default: throw throwMalformed( null );
-         }
-         switch ( rlen ) {
-            case 3: out[wi++] = (byte)( sum >>> 16 );
-            case 2: out[wi++] = (byte)( sum >>> 8  );
-            case 1: out[wi  ] = (byte)  sum;
-         }
+         long sum = decodeMap[ in[ri  ] ] * Power4 +
+                    decodeMap[ in[ri+1] ] * Power3 + 85;
+         if ( rlen >= 3 ) {
+            sum   += decodeMap[ in[ri+2] ] * Power2;
+            if ( rlen >= 4 )
+               sum += decodeMap[ in[ri+3] ] * 85;
+            else
+               sum += Power2;
+         } else
+            sum += Power3 + Power2;
+         buffer.putInt( 0, (int) sum );
+         System.arraycopy( buf, 0, out, wi, rlen-1 );
          return loop * 4 + rlen;
       }
    }
@@ -554,14 +635,14 @@ public class Base85 {
    }
 
    private static void checkCharacterMap ( byte[] map ) {
-      if ( map.length != 85 ) throw new IllegalArgumentException( "Base85 character map requires exactly 85 characters");
+      if ( map.length != 85 ) throw new IllegalArgumentException( "Base85 character map requires exactly 85 characters. Got " + map.length );
       for ( int i = 0 ; i < 83 ; i++ )
-         for ( int j = i+1 ; i < 84 ; j++ )
+         for ( int j = i+1 ; j < 84 ; j++ )
             if ( map[i] == map[j] )
                throw new IllegalArgumentException( "Base85 character map must not contain duplicates");
    }
 
-   private static Encoder RFC1924ENCODER, Z85ENCODER;
+   private static Encoder RFC1924ENCODER, Z85ENCODER, ASCII85ENCODER;
    private static Decoder RFC1924DECODER, Z85DECODER;
 
    public static Encoder getRfc1942Encoder() {
@@ -579,5 +660,27 @@ public class Base85 {
    public static Decoder getZ85Decoder() {
       if ( Z85DECODER == null ) Z85DECODER = new Z85Decoder();
       return Z85DECODER;
+   }
+   public static Encoder getAscii85Encoder() {
+      if ( ASCII85ENCODER == null ) ASCII85ENCODER = new Ascii85Encoder();
+      return ASCII85ENCODER;
+   }
+
+
+   public static void main( String[] args ) {
+      checkCharacterMap( Ascii85Encoder.ENCODE_MAP );
+      Encoder e = getAscii85Encoder();
+      //Decoder d = getRfc1942Encoder();
+      System.out.println( e.encode( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ) );
+      System.out.println( e.encode( "測試中" ) );
+      System.out.println( e.encode( "اختبارات" ) );
+      System.out.println( e.encode( "A" ) );
+      System.out.println( e.encode( "AB" ) );
+      System.out.println( e.encode( "ABC" ) );
+      System.out.println( e.encode( "ABCD" ) );
+      System.out.println( e.encode( "ABCDE" ) );
+      System.out.println( e.encode( "ABCDEF" ) );
+      System.out.println( e.encode( "ABCDEFG" ) );
+      System.out.println( e.encode( "ABCDEFGH" ) );
    }
 }

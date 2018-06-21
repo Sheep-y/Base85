@@ -15,14 +15,16 @@ import sheepy.util.text.Base85.Decoder;
 
 public class Base85Test {
    private final Random rng = new Random();
-   private final Base85.Encoder rfcE, z85E;
-   private final Base85.Decoder rfcD, z85D;
+   private final Base85.Encoder rfcE, z85E, a85E;
+   private final Base85.Decoder rfcD, z85D, a85D;
 
    public Base85Test() {
       rfcE = Base85.getRfc1942Encoder();
       rfcD = Base85.getRfc1942Decoder();
       z85E = Base85.getZ85Encoder();
       z85D = Base85.getZ85Decoder();
+      a85E = Base85.getAscii85Encoder();
+      a85D = null;
    }
 
    /*
@@ -77,22 +79,35 @@ public class Base85Test {
       return data + " does not return true when tested";
    }
 
+   /////////// Common Tests ///////////
+
+   @Test public void testStrEncode ( String[] data, Encoder e ) {
+      for ( int i = 0 ; i < data.length ; i += 2 ) {
+         assertEquals( "Encode " + data[i], data[i+1], e.encode( data[i] ) );
+      }
+   }
+   @Test public void testStrDecode ( String[] data, Decoder d ) {
+      for ( int i = 0 ; i < data.length ; i += 2 ) {
+         assertEquals( "Decode " + data[i+1], data[i], z85D.decode( data[i+1] ) );
+         assertArrayEquals( "Decode " + data[i+1] + " to bytes", data[i].getBytes( UTF_8 ), z85D.decode( data[i+1].getBytes( US_ASCII ) ) );
+      }
+   }
 
    /////////// RFC Tests ///////////
 
    private final String[] rfcTests = {
       "", "",
-      "A", "0%",
-      "AB", "2Qk",
-      "ABC", "6{`S",
+      "A", "K>",
+      "AB", "K|%",
+      "ABC", "K|(_",
       "ABCD", "K|(`B",
-      "ABCDE", "K|(`B0*",
-      "ABCDEF", "K|(`B2cs",
-      "ABCDEFG", "K|(`B7XVe",
+      "ABCDE", "K|(`BMF",
+      "ABCDEF", "K|(`BMMe",
+      "ABCDEFG", "K|(`BMMg&",
       "ABCDEFGH", "K|(`BMMg(R",
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~",
-         "FflSSG&MFiI5|N=LqtVJM@UIZOH55pPf$@(Q&d$}S6EqEVPa!sWoBn+X=-b1ZEkOHadLBXb#`}nd3qruBqb&&DJm;1J3Ku;KR{kzV0(Oh1f",
-      "測試中", "=D4irsix$(23",
+         "FflSSG&MFiI5|N=LqtVJM@UIZOH55pPf$@(Q&d$}S6EqEVPa!sWoBn+X=-b1ZEkOHadLBXb#`}nd3qruBqb&&DJm;1J3Ku;KR{kzV0(Oheg",
+      "測試中", "=D4irsix$(tp",
       "اختبارات", "*r(X8*s9p5*r(XB*r(X4",
    };
 
@@ -185,17 +200,17 @@ public class Base85Test {
 
    private final String[] z85Tests = {
       "", "",
-      "A", "0+",
-      "AB", "2qK",
-      "ABC", "6@}s",
+      "A", "k(",
+      "AB", "k%+",
+      "ABC", "k%^{",
       "ABCD", "k%^}b",
-      "ABCDE", "k%^}b0/",
-      "ABCDEF", "k%^}b2CS",
-      "ABCDEFG", "k%^}b7xvE",
+      "ABCDE", "k%^}bmf",
+      "ABCDEF", "k%^}bmmE",
+      "ABCDEFG", "k%^}bmmG=",
       "ABCDEFGH", "k%^}bmmG^r",
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#",
-         "fFLssg=mfIi5$zRv}od.xj#0]yIW<9z/xYpB98LFCx!yVk%^}bmmG^rnLhSHo?[FXqbQs(rArg6sZ0BfiX9v1aULrfcoKEudo*88ElY870z",
-      "測試中", ">d4IRSIX:^23",
+         "fFLssg=mfIi5$zRv}od.xj#0]yIW<9z/xYpB98LFCx!yVk%^}bmmG^rnLhSHo?[FXqbQs(rArg6sZ0BfiX9v1aULrfcoKEudo*88ElY87bl",
+      "測試中", ">d4IRSIX:^TP",
       "اختبارات", "/R^x8/S9P5/R^xb/R^x4",
    };
 
@@ -280,5 +295,30 @@ public class Base85Test {
    @Test public void testZ85Spec() {
       byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
       assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
+   }
+
+   private final String[] Ascii85Tests = {
+      "", "",
+      "A", "<~5l~>",
+      "AB", "<~5sb~>",
+      "ABC", "<~5sdp~>",
+      "ABCD", "<~5sdq,~>",
+      "ABCDE", "<~5sdq,70~>",
+      "ABCDEF", "<~5sdq,77I~>",
+      "ABCDEFG", "<~5sdq,77Kc~>",
+      "ABCDEFGH", "<~5sdq,77Kd<~>",
+      "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+         "<~+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BFT~>",
+      "測試中", "<~k.%MVWM\\adXT~>",
+      "اختبارات", "<~fVdB)fW*T&fVdB,fVdB%~>",
+   };
+   @Test public void testAscii85Spec() {
+      String from = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
+      String to = "<~9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,"+
+                  "O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY"+
+                  "i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa" +
+                  "l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G" +
+                  ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c~>";
+      assertEquals( "Leviathan encode", to, a85E.encode( from ) );
    }
 }
