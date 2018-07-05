@@ -170,6 +170,18 @@ public class Base85 {
 
    /* An encoder that does not support compression */
    private static abstract class SimpleEncoder extends Encoder {
+      protected int _encodeDangling ( final byte[] encodeMap, final byte[] out, final int wi, final ByteBuffer buffer, int leftover ) {
+         long sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
+         out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+         out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+         if ( leftover >= 2 ) {
+            out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
+            if ( leftover >= 3 )
+               out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
+         }
+         return leftover + 1;
+      }
+
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
          final int loop = rlen / 4, wo = wi;
@@ -189,15 +201,7 @@ public class Base85 {
          if ( leftover == 0 ) return wi - wo;
          buffer.putInt( 0, 0 );
          System.arraycopy( in, ri, buf, 0, leftover );
-         sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-         out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-         out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
-         if ( leftover >= 2 ) {
-            out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
-            if ( leftover >= 3 )
-               out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
-         }
-         return wi - wo + leftover + 1;
+         return wi - wo + _encodeDangling( encodeMap, out, wi, buffer, leftover );
       }
    }
 
@@ -300,15 +304,7 @@ public class Base85 {
          if ( leftover != 0 ) {
             buffer.putInt( 0, 0 );
             System.arraycopy( in, ri, buf, 0, leftover );
-            sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-            out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
-            if ( leftover >= 2 ) {
-               out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
-               if ( leftover >= 3 )
-                  out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
-            }
-            wi += leftover + 1;
+            wi += _encodeDangling( encodeMap, out, wi, buffer, leftover );
          }
          //out[wi++] = '~';
          //out[wi  ] = '>';
@@ -566,6 +562,22 @@ public class Base85 {
          return super.calcDecodedLength( encoded_data, offset, length );
       }
 
+      protected int _decodeDangling ( final byte[] decodeMap, final byte[] in, final int ri, final ByteBuffer buffer, int leftover ) {
+         if ( leftover == 1 ) throwMalformed( null );
+         long sum = decodeMap[ in[ri  ] ] * Power4 +
+                    decodeMap[ in[ri+1] ] * Power3 + 85;
+         if ( leftover >= 3 ) {
+            sum   += decodeMap[ in[ri+2] ] * Power2;
+            if ( leftover >= 4 )
+               sum += decodeMap[ in[ri+3] ] * 85;
+            else
+               sum += Power2;
+         } else
+            sum += Power3 + Power2;
+         buffer.putInt( 0, (int) sum );
+         return leftover-1;
+      }
+
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
          final int loop = rlen / 5, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
@@ -581,18 +593,7 @@ public class Base85 {
          }
          int leftover = rlen % 5;
          if ( leftover == 0 ) return wi - wo;
-         long sum = decodeMap[ in[ri  ] ] * Power4 +
-                    decodeMap[ in[ri+1] ] * Power3 + 85;
-         if ( leftover >= 3 ) {
-            sum   += decodeMap[ in[ri+2] ] * Power2;
-            if ( leftover >= 4 )
-               sum += decodeMap[ in[ri+3] ] * 85;
-            else
-               sum += Power2;
-         } else
-            sum += Power3 + Power2;
-         buffer.putInt( 0, (int) sum );
-         leftover--;
+         leftover = _decodeDangling( decodeMap, in, ri, buffer, leftover );
          System.arraycopy( buf, 0, out, wi, leftover );
          return wi - wo + leftover;
       }
@@ -761,23 +762,8 @@ public class Base85 {
                break;
          }
          if ( re == ri ) return wi - wo;
-         int leftover = re - ri;
-         if ( leftover > 1 ) {
-            long sum = decodeMap[ in[ri  ] ] * Power4 +
-                       decodeMap[ in[ri+1] ] * Power3 + 85;
-            if ( leftover >= 3 ) {
-               sum   += decodeMap[ in[ri+2] ] * Power2;
-               if ( leftover >= 4 )
-                  sum += decodeMap[ in[ri+3] ] * 85;
-               else
-                  sum += Power2;
-            } else
-               sum += Power3 + Power2;
-            buffer.putInt( 0, (int) sum );
-            leftover--;
-            System.arraycopy( buf, 0, out, wi, leftover );
-         } else
-            throwMalformed( null );
+         int leftover = _decodeDangling( decodeMap, in, ri, buffer, re - ri );
+         System.arraycopy( buf, 0, out, wi, leftover );
          return wi - wo + leftover;
       }
    }
