@@ -24,7 +24,7 @@ public class Base85Test {
       z85E = Base85.getZ85Encoder();
       z85D = Base85.getZ85Decoder();
       a85E = Base85.getAscii85Encoder();
-      a85D = null;
+      a85D = Base85.getAscii85Decoder();
    }
 
    /*
@@ -121,11 +121,21 @@ public class Base85Test {
       assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
    }
    public void testRoundTrip ( Base85.Encoder e, Base85.Decoder d ) {
-      for ( int len = 1 ; len <= 8 ; len++ ) {
-         final byte[] from = new byte[ len ];
+      for ( int len = 1 ; len <= 12 ; len++ ) {
+         byte[] from = new byte[ len ], enc, dec;
          for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
             Arrays.fill( from, (byte) v );
-            assertArrayEquals( "byte[" + len + "]{" + v + "} round trip.", from, d.decode( e.encode( from ) ) );
+            String test = "byte[" + len + "]{" + v + "} ";
+            try {
+               enc = e.encode( from );
+               assertTrue( test + "encoded data test.", d.test( enc ) );
+               assertEquals( test + "encoded length", enc.length, e.calcEncodedLength( from ) );
+               dec = d.decode( enc );
+               assertEquals( test + "decoded length", dec.length, d.calcDecodedLength( enc ) );
+               assertArrayEquals( test + "round trip.", from, dec );
+            } catch ( Exception ex ) {
+               fail( "byte[" + len + "]{" + v + "} round trip throws " + ex );
+            };
          }
       }
    }
@@ -180,23 +190,11 @@ public class Base85Test {
    @Test public void testRfcRoundTrip() { testRoundTrip( rfcE, rfcD ); }
    @Test public void testRfcDecodedFail() { testFails( rfcE, rfcD ); }
 
-   @Test public void testRfcDecodedLen() {
-      int[]  in = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 },
-            out = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 };
-      for ( int i = 0 ; i < in.length ; i++ )
-         assertEquals( "Decoded length of " + in[i] + " chars.", out[i], rfcD.calcDecodedLength( null, 0, in[i] ) );
-   }
    @Test(expected = IllegalArgumentException.class) public void testRfcDecodedLenErr6() {
       rfcD.calcDecodedLength( null, 0, 6 );
    }
    @Test(expected = IllegalArgumentException.class) public void testRfcDecodedLenErr1() {
       rfcD.calcDecodedLength( null, 0, 1 );
-   }
-   @Test public void testRfcEncodedLen() {
-      int[]  in = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 },
-            out = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 };
-      for ( int i = 0 ; i < in.length ; i++ )
-         assertEquals( "Encoded length of " + in[i] + " bytes.", out[i], rfcE.calcEncodedLength( null, 0, in[i] ) );
    }
 
 
@@ -223,23 +221,11 @@ public class Base85Test {
    @Test public void testZ85RoundTrip() { testRoundTrip( z85E, z85D ); }
    @Test public void testZ85DecodedFail() { testFails( z85E, z85D ); }
 
-   @Test public void testZ85DecodedLen() {
-      int[]  in = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 },
-            out = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 };
-      for ( int i = 0 ; i < in.length ; i++ )
-         assertEquals( "Decoded length of " + in[i] + " chars.", out[i], z85D.calcDecodedLength( null, 0, in[i] ) );
-   }
    @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr6() {
       z85D.calcDecodedLength( null, 0, 6 );
    }
    @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr1() {
       z85D.calcDecodedLength( null, 0, 1 );
-   }
-   @Test public void testZ85EncodedLen() {
-      int[]  in = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 160000, 160001 },
-            out = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 };
-      for ( int i = 0 ; i < in.length ; i++ )
-         assertEquals( "Encoded length of " + in[i] + " bytes.", out[i], z85E.calcEncodedLength( null, 0, in[i] ) );
    }
    @Test public void testZ85Spec() {
       byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
@@ -271,10 +257,14 @@ public class Base85Test {
       assertEquals( "Leviathan encode", to, a85E.encode( from ) );
    }
    @Test public void testA85StrEncode() { testStrEncode( a85E, A85Tests ); }
-//   @Test public void testA85StrDecode() { testStrDecode( a85D, A85Tests ); }
+   @Test public void testA85StrDecode() { testStrDecode( a85D, A85Tests ); }
    @Test public void testA85Encode() { testByteEncode( a85E, A85Tests ); }
-//   @Test public void testA85Decode() { testByteDecode( a85D, A85Tests ); }
-//   @Test public void testA85RoundTrip() { testRoundTrip( a85E, a85D ); }
-//   @Test public void testA85DecodedFail() { testFails( a85E, a85D ); }
+   @Test public void testA85Decode() { testByteDecode( a85D, A85Tests ); }
+   @Test public void testA85RoundTrip() { testRoundTrip( a85E, a85D ); }
+   @Test public void testA85DecodedFail() {
+      testFails( a85E, a85D );
+      assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "ya" ) );
+      assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "zya" ) );
+   }
 
 }

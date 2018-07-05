@@ -174,6 +174,28 @@ public class Base85 {
      */
    public static abstract class Decoder {
       /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
+        * @param data Encoded data in ascii charset
+        * @return number of byte of decoded data
+        */
+      public int calcDecodedLength ( String data ) {
+         return calcDecodedLength( data.getBytes( US_ASCII ) );
+      }
+
+      /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
+        * @param data Encoded data in ascii charset
+        * @return number of byte of decoded data
+        */
+      public int calcDecodedLength ( final byte[] data ) {
+         return calcDecodedLength( data, 0, data.length );
+      }
+
+      /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
         * @param data Encoded data in ascii charset
         * @param offset byte offset that data starts
         * @param length number of data bytes
@@ -286,6 +308,15 @@ public class Base85 {
         * @return true if data is of correct length and composed of correct characters
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
+      public boolean test ( final String data ) {
+         return test( data.getBytes( US_ASCII ) );
+      }
+
+      /** Test that given data can be decoded correctly.
+        * @param data Encoded data in ascii charset
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
       public boolean test ( final byte[] data ) {
          return test( data, 0, data.length );
       }
@@ -300,7 +331,9 @@ public class Base85 {
       public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
 
       protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
-         checkBounds( data, offset, length );
+         try {
+            checkBounds( data, offset, length );
+         } catch ( IllegalArgumentException ignored ) { return false; }
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
             byte e = data[i];
             if ( e < 0 || ! valids[ e ] )
@@ -322,10 +355,10 @@ public class Base85 {
    private static abstract class SimpleEncoder extends Encoder {
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
-         final int loop = rlen / 4;
+         final int loop = rlen / 4, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
-         for ( int i = loop ; i > 0 ; i-- ) {
+         for ( int i = loop ; i > 0 ; i--, wi += 5 ) {
             System.arraycopy( in, ri, buf, 0, 4 );
             ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
@@ -334,21 +367,20 @@ public class Base85 {
             out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
             out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
             out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
-            wi += 5;
          }
-         rlen %= 4;
-         if ( rlen == 0 ) return loop * 5;
+         int leftover = rlen % 4;
+         if ( leftover == 0 ) return wi - wo;
          buffer.putInt( 0, 0 );
-         System.arraycopy( in, ri, buf, 0, rlen );
+         System.arraycopy( in, ri, buf, 0, leftover );
          sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
          out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
          out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
-         if ( rlen >= 2 ) {
+         if ( leftover >= 2 ) {
             out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
-            if ( rlen >= 3 )
+            if ( leftover >= 3 )
                out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
          }
-         return loop * 5 + rlen + 1;
+         return wi - wo + leftover + 1;
       }
    }
 
@@ -419,12 +451,12 @@ public class Base85 {
       public synchronized boolean getSpaceCompression() { return useY; }
 
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
-         boolean z = true, y = true;
+         boolean z, y;
          synchronized ( this ) { z = useZ; y = useY; }
          long sum;
-         final int loop = rlen / 4;
+         final int loop = rlen / 4, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
-         final byte[] buf = buffer.array();
+         final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
          //out[wi++] = '<';
          //out[wi++] = '~';
          for ( int i = loop ; i > 0 ; i-- ) {
@@ -438,32 +470,32 @@ public class Base85 {
                out[wi++] = 'y';
 
             } else {
-               out[wi  ] = (byte)(( sum / Power4 )+33); sum %= Power4;
-               out[wi+1] = (byte)(( sum / Power3 )+33); sum %= Power3;
-               out[wi+2] = (byte)(( sum / Power2 )+33); sum %= Power2;
-               out[wi+3] = (byte)(( sum / 85 )+33);
-               out[wi+4] = (byte)(( sum % 85 )+33);
+
+               out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+               out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+               out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
+               out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
+               out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
                wi += 5;
             }
          }
-         rlen %= 4;
-         if ( rlen != 0 ) {
+         int leftover = rlen % 4;
+         if ( leftover != 0 ) {
             buffer.putInt( 0, 0 );
-            System.arraycopy( in, ri, buf, 0, rlen );
+            System.arraycopy( in, ri, buf, 0, leftover );
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = (byte)(( sum / Power4 )+33); sum %= Power4;
-            out[wi+1] = (byte)(( sum / Power3 )+33); sum %= Power3;
-            if ( rlen >= 2 ) {
-               out[wi+2] = (byte)(( sum / Power2 )+33); sum %= Power2;
-               if ( rlen >= 3 )
-                  out[wi+3] = (byte)(( sum / 85 )+33);
+            out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
+            out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
+            if ( leftover >= 2 ) {
+               out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
+               if ( leftover >= 3 )
+                  out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
             }
-            rlen++;
-            //wi += rlen;
+            wi += leftover + 1;
          }
          //out[wi++] = '~';
          //out[wi  ] = '>';
-         return loop * 5 + rlen;
+         return wi - wo;
       }
    }
 
@@ -521,7 +553,9 @@ public class Base85 {
    private static abstract class SimpleDecoder extends Decoder {
       @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
          if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
-         calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
+         try {
+            calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
+         } catch ( IllegalArgumentException ignored ) { return false; }
          return true;
       }
 
@@ -531,10 +565,10 @@ public class Base85 {
       }
 
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
-         final int loop = rlen / 5;
+         final int loop = rlen / 5, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
-         for ( int i = loop ; i > 0 ; i-- ) {
+         for ( int i = loop ; i > 0 ; i--, wi += 4 ) {
             buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power4 +
                                       decodeMap[ in[ri+1] ] * Power3 +
                                       decodeMap[ in[ri+2] ] * Power2 +
@@ -542,23 +576,22 @@ public class Base85 {
                                       decodeMap[ in[ri+4] ] ) );
             ri += 5;
             System.arraycopy( buf, 0, out, wi, 4 );
-            wi += 4;
          }
-         rlen %= 5;
-         if ( rlen == 0 ) return loop * 4;
+         int leftover = rlen % 5;
+         if ( leftover == 0 ) return wi - wo;
          long sum = decodeMap[ in[ri  ] ] * Power4 +
                     decodeMap[ in[ri+1] ] * Power3 + 85;
-         if ( rlen >= 3 ) {
+         if ( leftover >= 3 ) {
             sum   += decodeMap[ in[ri+2] ] * Power2;
-            if ( rlen >= 4 )
+            if ( leftover >= 4 )
                sum += decodeMap[ in[ri+3] ] * 85;
             else
                sum += Power2;
          } else
             sum += Power3 + Power2;
          buffer.putInt( 0, (int) sum );
-         System.arraycopy( buf, 0, out, wi, rlen-1 );
-         return loop * 4 + rlen;
+         System.arraycopy( buf, 0, out, wi, leftover-1 );
+         return wi - wo + leftover - 1;
       }
    }
 
@@ -649,9 +682,105 @@ public class Base85 {
       @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, VALID_BYTES ); }
    }
 
+   /** This class decodes Ascii85 encoded data (Adobe variant without &lt;~ and ~&gt;).
+    *  'y' and 'z' are always processed.  This keep the decoder simple.
+     * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
+     * Decoder instances can be safely shared by multiple threads.
+     * @see https://en.wikipedia.org/wiki/Ascii85
+     */
+   private static class Ascii85Decoder extends SimpleDecoder {
+      @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
+         int deflated = length, len = offset + length, i;
+         for ( i = offset ; i < len ; i += 5 )
+            if ( encoded_data[i] == 'z' || encoded_data[i] == 'y' ) {
+               deflated += 4;
+               i -= 4;
+            }
+         if ( i != len ) {
+            i -= 5;
+            while ( i < len && ( encoded_data[i] == 'z' || encoded_data[i] == 'y' ) ) {
+               deflated += 4;
+               i -= 4;
+            }
+         }
+         return super.calcDecodedLength( null, 0, deflated );
+      }
+
+      @Override public boolean test ( byte[] encoded_data, int offset, int length ) {
+         try {
+            checkBounds( encoded_data, offset, length );
+            int deviation = 0;
+            for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+               byte e = encoded_data[i];
+               if ( e < 0 || ! VALID_BYTES[ e ] )
+                  if ( ( deviation + i - offset ) % 5 != 0 || ( e != 'z' && e != 'y' ) )
+                     return false;
+                  else
+                     deviation += 4;
+            }
+            super.calcDecodedLength( null, 0, length + deviation ); // Validate length
+         } catch ( IllegalArgumentException ignored ) { return false; }
+         return true;
+      }
+
+      private static final byte[] DECODE_MAP = new byte[126];
+      private static final boolean[] VALID_BYTES = new boolean[255];
+      static {
+         buildDecodeMap( Ascii85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
+      }
+      @Override protected String getName() { return "Ascii85"; }
+      @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
+
+      @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
+         final int wo = wi;
+         final ByteBuffer buffer = ByteBuffer.allocate( 4 );
+         final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
+         for ( int max = ri + rlen, max2 = max - 4 ; ri < max ; wi += 4 ) {
+            while ( ri < max &&( in[ri] == 'z' || in[ri] == 'y' ) ) {
+               switch ( in[ri++] ) {
+               case 'z': buffer.putInt( 0, 0 );
+                         break;
+               case 'y': buffer.putInt( 0, 0x20202020 );
+                         break;
+               }
+               System.arraycopy( buf, 0, out, wi, 4 );
+               wi += 4;
+            }
+            if ( ri < max2 ) {
+               buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power4 +
+                                         decodeMap[ in[ri+1] ] * Power3 +
+                                         decodeMap[ in[ri+2] ] * Power2 +
+                                         decodeMap[ in[ri+3] ] * 85 +
+                                         decodeMap[ in[ri+4] ] ) );
+               ri += 5;
+               System.arraycopy( buf, 0, out, wi, 4 );
+            } else
+               break;
+         }
+         if ( rlen == ri ) return wi - wo;
+         int leftover = rlen - ri;
+         if ( leftover > 1 ) {
+            long sum = decodeMap[ in[ri  ] ] * Power4 +
+                       decodeMap[ in[ri+1] ] * Power3 + 85;
+            if ( leftover >= 3 ) {
+               sum   += decodeMap[ in[ri+2] ] * Power2;
+               if ( leftover >= 4 )
+                  sum += decodeMap[ in[ri+3] ] * 85;
+               else
+                  sum += Power2;
+            } else
+               sum += Power3 + Power2;
+            buffer.putInt( 0, (int) sum );
+            leftover--;
+            System.arraycopy( buf, 0, out, wi, leftover );
+         }
+         return wi - wo + leftover;
+      }
+   }
+
    private static void checkBounds ( byte[] data, int offset, int length ) {
       if ( offset < 0 || length < 0 || offset + length > data.length )
-         throw new IllegalArgumentException();
+         throw new IllegalArgumentException( "Invalid decode data range" );
    }
 
    private static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
@@ -671,7 +800,7 @@ public class Base85 {
    }
 
    private static Encoder RFC1924ENCODER, Z85ENCODER, ASCII85ENCODER;
-   private static Decoder RFC1924DECODER, Z85DECODER;
+   private static Decoder RFC1924DECODER, Z85DECODER, ASCII85DECODER;
 
    public static Encoder getRfc1942Encoder() {
       if ( RFC1924ENCODER == null ) RFC1924ENCODER = new Rfc1924Encoder();
@@ -693,12 +822,20 @@ public class Base85 {
       if ( ASCII85ENCODER == null ) ASCII85ENCODER = new Ascii85Encoder();
       return ASCII85ENCODER;
    }
-
+   public static Decoder getAscii85Decoder() {
+      if ( ASCII85DECODER == null ) ASCII85DECODER = new Ascii85Decoder();
+      return ASCII85DECODER;
+   }
 
    public static void main( String[] args ) {
       checkCharacterMap( Ascii85Encoder.ENCODE_MAP );
       Encoder e = getAscii85Encoder();
-      //Decoder d = getRfc1942Encoder();
+      Decoder d = getAscii85Decoder();
+      byte[] test = new byte[4];
+      Arrays.fill( test, (byte)0 );
+      System.out.println( e.encodeToString( test ) );
+      System.out.println( d.decodeToBytes( "z" )[0] );
+      /*
       System.out.println( e.encode( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ) );
       System.out.println( e.encode( "測試中" ) );
       System.out.println( e.encode( "اختبارات" ) );
@@ -710,5 +847,6 @@ public class Base85 {
       System.out.println( e.encode( "ABCDEF" ) );
       System.out.println( e.encode( "ABCDEFG" ) );
       System.out.println( e.encode( "ABCDEFGH" ) );
+      */
    }
 }
