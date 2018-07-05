@@ -432,7 +432,8 @@ public class Base85 {
                   out[wi+3] = (byte)(( sum / 85 )+33);
             }
             wi += rlen + 1;
-         }
+         } else
+            rlen--; // No dangling char means one less output character
          out[wi++] = '~';
          out[wi  ] = '>';
          return loop * 5 + rlen + 5;

@@ -79,19 +79,74 @@ public class Base85Test {
       return data + " does not return true when tested";
    }
 
-   /////////// Common Tests ///////////
+   /////////// Generic Test Routines ///////////
 
-   @Test public void testStrEncode ( String[] data, Encoder e ) {
-      for ( int i = 0 ; i < data.length ; i += 2 ) {
-         assertEquals( "Encode " + data[i], data[i+1], e.encode( data[i] ) );
+   public void testStrEncode ( Base85.Encoder e, String[] map ) {
+      for ( int i = 0 ; i < map.length ; i += 2 )
+         assertEquals( "Encode " + map[i], map[i+1], e.encode( map[i] ) );
+   }
+   public void testStrDecode ( Base85.Decoder d, String[] map ) {
+      for ( int i = 0 ; i < map.length ; i += 2 ) {
+         assertEquals( "Decode " + map[i+1], map[i], d.decode( map[i+1] ) );
+         assertArrayEquals( "Decode " + map[i+1] + " to bytes", map[i].getBytes( UTF_8 ), d.decode( map[i+1].getBytes( US_ASCII ) ) );
       }
    }
-   @Test public void testStrDecode ( String[] data, Decoder d ) {
-      for ( int i = 0 ; i < data.length ; i += 2 ) {
-         assertEquals( "Decode " + data[i+1], data[i], z85D.decode( data[i+1] ) );
-         assertArrayEquals( "Decode " + data[i+1] + " to bytes", data[i].getBytes( UTF_8 ), z85D.decode( data[i+1].getBytes( US_ASCII ) ) );
+   public void testByteEncode ( Base85.Encoder e, String[] map ) {
+      String origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertEquals( "encodeToString", codeStr, e.encodeToString( orig ) );
+      assertArrayEquals( "Byte to byte encode", code, e.encode( orig ) );
+      byte[] buf = Arrays.copyOf( orig, orig.length * 2 );
+      assertArrayEquals( "Byte to byte encode offset 0", code, e.encode( buf, 0, orig.length ) );
+      System.arraycopy( buf, 0, buf, 2, orig.length );
+      assertArrayEquals( "Byte to byte encode offset 2", code, e.encode( buf, 2, orig.length ) );
+      byte[] output = new byte[ code.length + 2 ];
+      e.encode( orig, 0, orig.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct encode offset 0", code, Arrays.copyOfRange( output, 0, code.length ) );
+      e.encode( buf, 2, orig.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
+   }
+   public void testByteDecode ( Base85.Decoder d, String[] map ) {
+      String origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
+      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
+      assertArrayEquals( "Byte to byte decode", orig, d.decode( code ) );
+      byte[] buf = Arrays.copyOf( code, code.length * 2 );
+      assertArrayEquals( "Byte to byte decode offset 0", orig, d.decode( buf, 0, code.length ) );
+      System.arraycopy( buf, 0, buf, 2, code.length );
+      assertArrayEquals( "Byte to byte decode offset 2", orig, d.decode( buf, 2, code.length ) );
+      byte[] output = new byte[ orig.length + 2 ];
+      d.decode( code, 0, code.length, output, 0 );
+      assertArrayEquals( "Byte to byte direct decode offset 0", orig, Arrays.copyOfRange( output, 0, orig.length ) );
+      d.decode( buf, 2, code.length, output, 2 );
+      assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
+   }
+   public void testRoundTrip ( Base85.Encoder e, Base85.Decoder d ) {
+      for ( int len = 1 ; len <= 8 ; len++ ) {
+         final byte[] from = new byte[ len ];
+         for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
+            Arrays.fill( from, (byte) v );
+            assertArrayEquals( "byte[" + len + "]{" + v + "} round trip.", from, d.decode( e.encode( from ) ) );
+         }
       }
    }
+   public void testFails ( Base85.Encoder e, Base85.Decoder d ) {
+      try {
+         d.decode( new byte[]{ 127, 127 } );
+         fail( "Decode char(127) does not throw Exception." );
+      } catch ( Exception yes ) {
+         assertEquals( "Decode char(127) throws", yes.getClass(), IllegalArgumentException.class );
+      }
+      try {
+         d.decode( new byte[]{ -1, -1 } );
+         fail( "Decode char(-1) does not throw Exception." );
+      } catch ( Exception yes ) {
+         assertEquals( "Decode char(-1) throws", yes.getClass(), IllegalArgumentException.class );
+      }
+      byte[] validCodes = e.getCharset().getBytes( US_ASCII );
+      byte[] invalidCodes = reverseCharset( validCodes );
+      recurTestValidate( validCodes, invalidCodes, new byte[11], 0, d );
+   }
+
 
    /////////// RFC Tests ///////////
 
@@ -118,65 +173,12 @@ public class Base85Test {
       assertArrayEquals( "Inet encode", addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ) ) );
    }
 
-   @Test public void testRfcStrEncode() {
-      for ( int i = 0 ; i < rfcTests.length ; i += 2 )
-         assertEquals( "Encode " + rfcTests[i], rfcTests[i+1], rfcE.encode( rfcTests[i] ) );
-   }
-   @Test public void testRfcStrDecode() {
-      for ( int i = 0 ; i < rfcTests.length ; i += 2 ) {
-         assertEquals( "Decode " + rfcTests[i+1], rfcTests[i], rfcD.decode( rfcTests[i+1] ) );
-         assertArrayEquals( "Decode " + rfcTests[i+1] + " to bytes", rfcTests[i].getBytes( UTF_8 ), rfcD.decode( rfcTests[i+1].getBytes( US_ASCII ) ) );
-      }
-   }
-   @Test public void testRfcEncode() {
-      String origStr = rfcTests[ rfcTests.length - 2 ], codeStr = rfcTests[ rfcTests.length - 1 ];
-      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
-      assertEquals( "encodeToString", codeStr, rfcE.encodeToString( orig ) );
-      assertArrayEquals( "Byte to byte encode", code, rfcE.encode( orig ) );
-      byte[] buf = Arrays.copyOf( orig, orig.length * 2 );
-      assertArrayEquals( "Byte to byte encode offset 0", code, rfcE.encode( buf, 0, orig.length ) );
-      System.arraycopy( buf, 0, buf, 2, orig.length );
-      assertArrayEquals( "Byte to byte encode offset 2", code, rfcE.encode( buf, 2, orig.length ) );
-      byte[] output = new byte[ code.length + 2 ];
-      rfcE.encode( orig, 0, orig.length, output, 0 );
-      assertArrayEquals( "Byte to byte direct encode offset 0", code, Arrays.copyOfRange( output, 0, code.length ) );
-      rfcE.encode( buf, 2, orig.length, output, 2 );
-      assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
-   }
-   @Test public void testRfcDecode() {
-      String origStr = rfcTests[ rfcTests.length - 2 ], codeStr = rfcTests[ rfcTests.length - 1 ];
-      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
-      assertArrayEquals( "Byte to byte decode", orig, rfcD.decode( code ) );
-      byte[] buf = Arrays.copyOf( code, code.length * 2 );
-      assertArrayEquals( "Byte to byte decode offset 0", orig, rfcD.decode( buf, 0, code.length ) );
-      System.arraycopy( buf, 0, buf, 2, code.length );
-      assertArrayEquals( "Byte to byte decode offset 2", orig, rfcD.decode( buf, 2, code.length ) );
-      byte[] output = new byte[ orig.length + 2 ];
-      rfcD.decode( code, 0, code.length, output, 0 );
-      assertArrayEquals( "Byte to byte direct decode offset 0", orig, Arrays.copyOfRange( output, 0, orig.length ) );
-      rfcD.decode( buf, 2, code.length, output, 2 );
-      assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
-   }
-   @Test public void testRfcRoundTrip() {
-      for ( int len = 1 ; len <= 8 ; len++ ) {
-         final byte[] from = new byte[ len ];
-         for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
-            Arrays.fill( from, (byte) v );
-            assertArrayEquals( "byte[" + len + "]{" + v + "} round trip.", from, rfcD.decode( rfcE.encode( from ) ) );
-         }
-      }
-   }
-   @Test(expected = IllegalArgumentException.class) public void testRfcDecodedFail() {
-      rfcD.decode( new byte[]{ 127, 127 } );
-   }
-   @Test(expected = IllegalArgumentException.class) public void testRfcDecodedFailNeg() {
-      rfcD.decode( new byte[]{ -1, -1 } );
-   }
-   @Test public void testRfcDecodeValidate() {
-      byte[] validCodes = rfcE.getCharset().getBytes( US_ASCII );
-      byte[] invalidCodes = reverseCharset( validCodes );
-      recurTestValidate( validCodes, invalidCodes, new byte[11], 0, rfcD );
-   }
+   @Test public void testRfcStrEncode() { testStrEncode( rfcE, rfcTests ); }
+   @Test public void testRfcStrDecode() { testStrDecode( rfcD, rfcTests ); }
+   @Test public void testRfcEncode() { testByteEncode( rfcE, rfcTests ); }
+   @Test public void testRfcDecode() { testByteDecode( rfcD, rfcTests ); }
+   @Test public void testRfcRoundTrip() { testRoundTrip( rfcE, rfcD ); }
+   @Test public void testRfcDecodedFail() { testFails( rfcE, rfcD ); }
 
    @Test public void testRfcDecodedLen() {
       int[]  in = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 },
@@ -214,65 +216,12 @@ public class Base85Test {
       "اختبارات", "/R^x8/S9P5/R^xb/R^x4",
    };
 
-   @Test public void testZ85StrEncode() {
-      for ( int i = 0 ; i < z85Tests.length ; i += 2 )
-         assertEquals( "Encode " + z85Tests[i], z85Tests[i+1], z85E.encode( z85Tests[i] ) );
-   }
-   @Test public void testZ85StrDecode() {
-      for ( int i = 0 ; i < z85Tests.length ; i += 2 ) {
-         assertEquals( "Decode " + z85Tests[i+1], z85Tests[i], z85D.decode( z85Tests[i+1] ) );
-         assertArrayEquals( "Decode " + z85Tests[i+1] + " to bytes", z85Tests[i].getBytes( UTF_8 ), z85D.decode( z85Tests[i+1].getBytes( US_ASCII ) ) );
-      }
-   }
-   @Test public void testZ85Encode() {
-      String origStr = z85Tests[ z85Tests.length - 2 ], codeStr = z85Tests[ rfcTests.length - 1 ];
-      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
-      assertEquals( "encodeToString", codeStr, z85E.encodeToString( orig ) );
-      assertArrayEquals( "Byte to byte encode", code, z85E.encode( orig ) );
-      byte[] buf = Arrays.copyOf( orig, orig.length * 2 );
-      assertArrayEquals( "Byte to byte encode offset 0", code, z85E.encode( buf, 0, orig.length ) );
-      System.arraycopy( buf, 0, buf, 2, orig.length );
-      assertArrayEquals( "Byte to byte encode offset 2", code, z85E.encode( buf, 2, orig.length ) );
-      byte[] output = new byte[ code.length + 2 ];
-      z85E.encode( orig, 0, orig.length, output, 0 );
-      assertArrayEquals( "Byte to byte direct encode offset 0", code, Arrays.copyOfRange( output, 0, code.length ) );
-      z85E.encode( buf, 2, orig.length, output, 2 );
-      assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
-   }
-   @Test public void testZ85Decode() {
-      String origStr = z85Tests[ z85Tests.length - 2 ], codeStr = z85Tests[ z85Tests.length - 1 ];
-      byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
-      assertArrayEquals( "Byte to byte decode", orig, z85D.decode( code ) );
-      byte[] buf = Arrays.copyOf( code, code.length * 2 );
-      assertArrayEquals( "Byte to byte decode offset 0", orig, z85D.decode( buf, 0, code.length ) );
-      System.arraycopy( buf, 0, buf, 2, code.length );
-      assertArrayEquals( "Byte to byte decode offset 2", orig, z85D.decode( buf, 2, code.length ) );
-      byte[] output = new byte[ orig.length + 2 ];
-      z85D.decode( code, 0, code.length, output, 0 );
-      assertArrayEquals( "Byte to byte direct decode offset 0", orig, Arrays.copyOfRange( output, 0, orig.length ) );
-      z85D.decode( buf, 2, code.length, output, 2 );
-      assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
-   }
-   @Test public void testZ85RoundTrip() {
-      for ( int len = 1 ; len <= 8 ; len++ ) {
-         final byte[] from = new byte[ len ];
-         for ( int v = Byte.MIN_VALUE ; v <= Byte.MAX_VALUE ; v++ ) {
-            Arrays.fill( from, (byte) v );
-            assertArrayEquals( "byte[" + len + "]{" + v + "} round trip.", from, z85D.decode( z85E.encode( from ) ) );
-         }
-      }
-   }
-   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedFail() {
-      z85D.decode( new byte[]{ 127, 127 } );
-   }
-   @Test(expected = IllegalArgumentException.class) public void testZ85DecodedFailNeg() {
-      z85D.decode( new byte[]{ -1, -1 } );
-   }
-   @Test public void testZ85DecodeValidate() {
-      byte[] validCodes = z85E.getCharset().getBytes( US_ASCII );
-      byte[] invalidCodes = reverseCharset( validCodes );
-      recurTestValidate( validCodes, invalidCodes, new byte[11], 0, z85D );
-   }
+   @Test public void testZ85StrEncode() { testStrEncode( z85E, z85Tests ); }
+   @Test public void testZ85StrDecode() { testStrDecode( z85D, z85Tests ); }
+   @Test public void testZ85Encode() { testByteEncode( z85E, z85Tests ); }
+   @Test public void testZ85Decode() { testByteDecode( z85D, z85Tests ); }
+   @Test public void testZ85RoundTrip() { testRoundTrip( z85E, z85D ); }
+   @Test public void testZ85DecodedFail() { testFails( z85E, z85D ); }
 
    @Test public void testZ85DecodedLen() {
       int[]  in = { 0, 2, 3, 4, 5, 7, 8, 9, 10, 200000, 200002 },
@@ -297,8 +246,8 @@ public class Base85Test {
       assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
    }
 
-   private final String[] Ascii85Tests = {
-      "", "",
+   private final String[] A85Tests = {
+      "", "<~~>",
       "A", "<~5l~>",
       "AB", "<~5sb~>",
       "ABC", "<~5sdp~>",
@@ -308,7 +257,7 @@ public class Base85Test {
       "ABCDEFG", "<~5sdq,77Kc~>",
       "ABCDEFGH", "<~5sdq,77Kd<~>",
       "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
-         "<~+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BFT~>",
+         "<~+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BF`qtRH$XgbI=;~>",
       "測試中", "<~k.%MVWM\\adXT~>",
       "اختبارات", "<~fVdB)fW*T&fVdB,fVdB%~>",
    };
@@ -321,4 +270,11 @@ public class Base85Test {
                   ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c~>";
       assertEquals( "Leviathan encode", to, a85E.encode( from ) );
    }
+   @Test public void testA85StrEncode() { testStrEncode( a85E, A85Tests ); }
+//   @Test public void testA85StrDecode() { testStrDecode( a85D, A85Tests ); }
+   @Test public void testA85Encode() { testByteEncode( a85E, A85Tests ); }
+//   @Test public void testA85Decode() { testByteDecode( a85D, A85Tests ); }
+//   @Test public void testA85RoundTrip() { testRoundTrip( a85E, a85D ); }
+//   @Test public void testA85DecodedFail() { testFails( a85E, a85D ); }
+
 }
