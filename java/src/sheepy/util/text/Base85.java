@@ -240,7 +240,9 @@ public class Base85 {
          checkBounds( data, offset, length );
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
          try {
-            _decode( data, offset, length, result, 0 );
+            int len = _decode( data, offset, length, result, 0 );
+            // Should not happen, but fitting the size makes sure tests will fail when it does happen.
+            if ( result.length != len ) return Arrays.copyOf( result, len );
          } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
          return result;
       }
@@ -590,8 +592,9 @@ public class Base85 {
          } else
             sum += Power3 + Power2;
          buffer.putInt( 0, (int) sum );
-         System.arraycopy( buf, 0, out, wi, leftover-1 );
-         return wi - wo + leftover - 1;
+         leftover--;
+         System.arraycopy( buf, 0, out, wi, leftover );
+         return wi - wo + leftover;
       }
    }
 
@@ -732,7 +735,7 @@ public class Base85 {
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
 
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
-         final int wo = wi;
+         final int re = ri + rlen, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
          for ( int max = ri + rlen, max2 = max - 4 ; ri < max ; wi += 4 ) {
@@ -757,8 +760,8 @@ public class Base85 {
             } else
                break;
          }
-         if ( rlen == ri ) return wi - wo;
-         int leftover = rlen - ri;
+         if ( re == ri ) return wi - wo;
+         int leftover = re - ri;
          if ( leftover > 1 ) {
             long sum = decodeMap[ in[ri  ] ] * Power4 +
                        decodeMap[ in[ri+1] ] * Power3 + 85;
@@ -773,7 +776,8 @@ public class Base85 {
             buffer.putInt( 0, (int) sum );
             leftover--;
             System.arraycopy( buf, 0, out, wi, leftover );
-         }
+         } else
+            throwMalformed( null );
          return wi - wo + leftover;
       }
    }

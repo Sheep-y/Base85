@@ -242,6 +242,8 @@ public class Base85Test {
       "ABCDEF", "5sdq,77I",
       "ABCDEFG", "5sdq,77Kc",
       "ABCDEFGH", "5sdq,77Kd<",
+      "\u0000\u0000\u0000\u0000", "z",
+      "    ", "y",
       "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
          "+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BF`qtRH$XgbI=;",
       "測試中", "k.%MVWM\\adXT",
