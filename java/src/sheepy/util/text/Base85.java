@@ -168,191 +168,6 @@ public class Base85 {
       public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
    }
 
-   /** This is a skeleton class for decoding data in the Base85 encoding scheme.
-     * in the same style as Base64 encoder.
-     * Decoder instances can be safely shared by multiple threads.
-     */
-   public static abstract class Decoder {
-      /** Calculate byte length of decoded data.
-        * Assumes data is correct; use test method to validate data.
-        *
-        * @param data Encoded data in ascii charset
-        * @return number of byte of decoded data
-        */
-      public int calcDecodedLength ( String data ) {
-         return calcDecodedLength( data.getBytes( US_ASCII ) );
-      }
-
-      /** Calculate byte length of decoded data.
-        * Assumes data is correct; use test method to validate data.
-        *
-        * @param data Encoded data in ascii charset
-        * @return number of byte of decoded data
-        */
-      public int calcDecodedLength ( final byte[] data ) {
-         return calcDecodedLength( data, 0, data.length );
-      }
-
-      /** Calculate byte length of decoded data.
-        * Assumes data is correct; use test method to validate data.
-        *
-        * @param data Encoded data in ascii charset
-        * @param offset byte offset that data starts
-        * @param length number of data bytes
-        * @return number of byte of decoded data
-        */
-      public int calcDecodedLength ( final byte[] data, final int offset, final int length ) {
-         return (int) ( length * 0.8 );
-      }
-
-      /** Decode Base85 string into a UTF-8 string.
-        * @param data text to decode
-        * @return decoded UTF-8 string
-        */
-      public final String decode ( final String data ) {
-         return new String( decode( data.getBytes( US_ASCII ) ), UTF_8 );
-      }
-
-      /** Decode ASCII Base85 data into a new byte array.
-        * @param data data to decode
-        * @return decoded binary data
-        */
-      public final byte[] decode ( final byte[] data ) {
-         return decode( data, 0, data.length );
-      }
-
-      /** Decode Base85 string into a new byte array.
-        * @param data data to decode
-        * @return decoded binary data
-        */
-      public final byte[] decodeToBytes ( final String data ) {
-         return decode( data.getBytes( US_ASCII ) );
-      }
-
-      /** Decode ASCII Base85 data into a new byte array.
-        * @param data array with data to decode
-        * @param offset byte offset to start reading data
-        * @param length number of byte to read
-        * @return decoded binary data
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
-        */
-      public final byte[] decode ( final byte[] data, final int offset, final int length ) {
-         checkBounds( data, offset, length );
-         byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
-         try {
-            int len = _decode( data, offset, length, result, 0 );
-            // Should not happen, but fitting the size makes sure tests will fail when it does happen.
-            if ( result.length != len ) return Arrays.copyOf( result, len );
-         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
-         return result;
-      }
-
-      /** Decode part of a byte array and write the output into a byte array in ASCII charset.
-        * @param data array with data to encode
-        * @param offset byte offset to start reading data
-        * @param length number of byte to read
-        * @param out array to write decoded data to
-        * @param out_offset byte offset to start writing decoded data to
-        * @return number of decoded bytes
-        * @throws IllegalArgumentException if offset or length is negative, or if either array is not big enough (data won't be written)
-        */
-      public final int decode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
-         int size = calcDecodedLength( data, offset, length );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
-         try {
-            _decode( data, offset, length, out, out_offset );
-         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
-         return size;
-      }
-
-      /** Decode the data as one block in reverse input order.
-        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
-        * when the data is exactly 16 bytes (128 bits) long.
-        * @see https://tools.ietf.org/html/rfc1924
-        * @param data Byte data to encode
-        * @return Encoded data in ascii encoding
-        */
-      public byte[] decodeBlockReverse ( byte[] data ) {
-         int size = Math.max( 0, (int) Math.ceil( data.length * 0.8 ) );
-         byte[] result = new byte[ size ];
-         decodeBlockReverse ( data, 0, data.length, result, 0 );
-         return result;
-      }
-
-      /** Decode part of data as one block in reverse input order into output array.
-        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
-        * when the data part is exactly 16 bytes (128 bits) long.
-        * @see https://tools.ietf.org/html/rfc1924
-        * @param data array to read data from
-        * @param offset byte offset to start reading data
-        * @param length number of byte to read
-        * @param out array to write decoded data to
-        * @param out_offset byte offset to start writing decoded data to
-        * @return number of decoded bytes
-        */
-      public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
-         int size = (int) Math.ceil( length * 0.8 );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
-         BigInteger blockSum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
-         byte[] map = getDecodeMap();
-         try {
-            for ( int i = offset, len = offset + length ; i < len ; i++ )
-               blockSum = blockSum.multiply( b85 ).add( BigInteger.valueOf( map[ data[ i ] ] ) );
-         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
-         System.arraycopy( blockSum.toByteArray(), 0, out, out_offset, size );
-         return size;
-      }
-
-      /** Test that given data can be decoded correctly.
-        * @param data Encoded data in ascii charset
-        * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
-        */
-      public boolean test ( final String data ) {
-         return test( data.getBytes( US_ASCII ) );
-      }
-
-      /** Test that given data can be decoded correctly.
-        * @param data Encoded data in ascii charset
-        * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
-        */
-      public boolean test ( final byte[] data ) {
-         return test( data, 0, data.length );
-      }
-
-      /** Test that part of given data can be decoded correctly.
-        * @param data Encoded data in ascii charset
-        * @param offset byte offset that data starts
-        * @param length number of data bytes
-        * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
-        */
-      public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
-
-      protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
-         try {
-            checkBounds( data, offset, length );
-         } catch ( IllegalArgumentException ignored ) { return false; }
-         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
-            byte e = data[i];
-            if ( e < 0 || ! valids[ e ] )
-               return false;
-         }
-         return true;
-      }
-
-      protected RuntimeException throwMalformed ( Exception ex ) {
-         throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data", ex );
-      }
-
-      protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
-      protected abstract byte[] getDecodeMap();
-      protected abstract String getName();
-   }
-
    /* An encoder that does not support compression */
    private static abstract class SimpleEncoder extends Encoder {
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
@@ -550,6 +365,191 @@ public class Base85 {
             System.arraycopy( charset, 0, ENCODE_MAP, 0, 85 );
          } finally { lock.writeLock().unlock(); }
       }
+   }
+
+   /** This is a skeleton class for decoding data in the Base85 encoding scheme.
+     * in the same style as Base64 encoder.
+     * Decoder instances can be safely shared by multiple threads.
+     */
+   public static abstract class Decoder {
+      /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
+        * @param data Encoded data in ascii charset
+        * @return number of byte of decoded data
+        */
+      public int calcDecodedLength ( String data ) {
+         return calcDecodedLength( data.getBytes( US_ASCII ) );
+      }
+
+      /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
+        * @param data Encoded data in ascii charset
+        * @return number of byte of decoded data
+        */
+      public int calcDecodedLength ( final byte[] data ) {
+         return calcDecodedLength( data, 0, data.length );
+      }
+
+      /** Calculate byte length of decoded data.
+        * Assumes data is correct; use test method to validate data.
+        *
+        * @param data Encoded data in ascii charset
+        * @param offset byte offset that data starts
+        * @param length number of data bytes
+        * @return number of byte of decoded data
+        */
+      public int calcDecodedLength ( final byte[] data, final int offset, final int length ) {
+         return (int) ( length * 0.8 );
+      }
+
+      /** Decode Base85 string into a UTF-8 string.
+        * @param data text to decode
+        * @return decoded UTF-8 string
+        */
+      public final String decode ( final String data ) {
+         return new String( decode( data.getBytes( US_ASCII ) ), UTF_8 );
+      }
+
+      /** Decode ASCII Base85 data into a new byte array.
+        * @param data data to decode
+        * @return decoded binary data
+        */
+      public final byte[] decode ( final byte[] data ) {
+         return decode( data, 0, data.length );
+      }
+
+      /** Decode Base85 string into a new byte array.
+        * @param data data to decode
+        * @return decoded binary data
+        */
+      public final byte[] decodeToBytes ( final String data ) {
+         return decode( data.getBytes( US_ASCII ) );
+      }
+
+      /** Decode ASCII Base85 data into a new byte array.
+        * @param data array with data to decode
+        * @param offset byte offset to start reading data
+        * @param length number of byte to read
+        * @return decoded binary data
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
+        */
+      public final byte[] decode ( final byte[] data, final int offset, final int length ) {
+         checkBounds( data, offset, length );
+         byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
+         try {
+            int len = _decode( data, offset, length, result, 0 );
+            // Should not happen, but fitting the size makes sure tests will fail when it does happen.
+            if ( result.length != len ) return Arrays.copyOf( result, len );
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
+         return result;
+      }
+
+      /** Decode part of a byte array and write the output into a byte array in ASCII charset.
+        * @param data array with data to encode
+        * @param offset byte offset to start reading data
+        * @param length number of byte to read
+        * @param out array to write decoded data to
+        * @param out_offset byte offset to start writing decoded data to
+        * @return number of decoded bytes
+        * @throws IllegalArgumentException if offset or length is negative, or if either array is not big enough (data won't be written)
+        */
+      public final int decode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
+         int size = calcDecodedLength( data, offset, length );
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
+         try {
+            _decode( data, offset, length, out, out_offset );
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
+         return size;
+      }
+
+      /** Decode the data as one block in reverse input order.
+        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
+        * when the data is exactly 16 bytes (128 bits) long.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data Byte data to encode
+        * @return Encoded data in ascii encoding
+        */
+      public byte[] decodeBlockReverse ( byte[] data ) {
+         int size = Math.max( 0, (int) Math.ceil( data.length * 0.8 ) );
+         byte[] result = new byte[ size ];
+         decodeBlockReverse ( data, 0, data.length, result, 0 );
+         return result;
+      }
+
+      /** Decode part of data as one block in reverse input order into output array.
+        * This is the strict algorithm specified by RFC 1924 for IP address decoding,
+        * when the data part is exactly 16 bytes (128 bits) long.
+        * @see https://tools.ietf.org/html/rfc1924
+        * @param data array to read data from
+        * @param offset byte offset to start reading data
+        * @param length number of byte to read
+        * @param out array to write decoded data to
+        * @param out_offset byte offset to start writing decoded data to
+        * @return number of decoded bytes
+        */
+      public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
+         int size = (int) Math.ceil( length * 0.8 );
+         checkBounds( data, offset, length );
+         checkBounds( out, out_offset, size );
+         BigInteger blockSum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
+         byte[] map = getDecodeMap();
+         try {
+            for ( int i = offset, len = offset + length ; i < len ; i++ )
+               blockSum = blockSum.multiply( b85 ).add( BigInteger.valueOf( map[ data[ i ] ] ) );
+         } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
+         System.arraycopy( blockSum.toByteArray(), 0, out, out_offset, size );
+         return size;
+      }
+
+      /** Test that given data can be decoded correctly.
+        * @param data Encoded data in ascii charset
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final String data ) {
+         return test( data.getBytes( US_ASCII ) );
+      }
+
+      /** Test that given data can be decoded correctly.
+        * @param data Encoded data in ascii charset
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] data ) {
+         return test( data, 0, data.length );
+      }
+
+      /** Test that part of given data can be decoded correctly.
+        * @param data Encoded data in ascii charset
+        * @param offset byte offset that data starts
+        * @param length number of data bytes
+        * @return true if data is of correct length and composed of correct characters
+        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
+        */
+      public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
+
+      protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
+         try {
+            checkBounds( data, offset, length );
+         } catch ( IllegalArgumentException ignored ) { return false; }
+         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+            byte e = data[i];
+            if ( e < 0 || ! valids[ e ] )
+               return false;
+         }
+         return true;
+      }
+
+      protected RuntimeException throwMalformed ( Exception ex ) {
+         throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data", ex );
+      }
+
+      protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
+      protected abstract byte[] getDecodeMap();
+      protected abstract String getName();
    }
 
    private static abstract class SimpleDecoder extends Decoder {
