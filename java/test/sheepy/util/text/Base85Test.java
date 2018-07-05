@@ -247,27 +247,27 @@ public class Base85Test {
    }
 
    private final String[] A85Tests = {
-      "", "<~~>",
-      "A", "<~5l~>",
-      "AB", "<~5sb~>",
-      "ABC", "<~5sdp~>",
-      "ABCD", "<~5sdq,~>",
-      "ABCDE", "<~5sdq,70~>",
-      "ABCDEF", "<~5sdq,77I~>",
-      "ABCDEFG", "<~5sdq,77Kc~>",
-      "ABCDEFGH", "<~5sdq,77Kd<~>",
+      "", "",
+      "A", "5l",
+      "AB", "5sb",
+      "ABC", "5sdp",
+      "ABCD", "5sdq,",
+      "ABCDE", "5sdq,70",
+      "ABCDEF", "5sdq,77I",
+      "ABCDEFG", "5sdq,77Kc",
+      "ABCDEFGH", "5sdq,77Kd<",
       "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
-         "<~+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BF`qtRH$XgbI=;~>",
-      "測試中", "<~k.%MVWM\\adXT~>",
-      "اختبارات", "<~fVdB)fW*T&fVdB,fVdB%~>",
+         "+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BF`qtRH$XgbI=;",
+      "測試中", "k.%MVWM\\adXT",
+      "اختبارات", "fVdB)fW*T&fVdB,fVdB%",
    };
    @Test public void testAscii85Spec() {
       String from = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
-      String to = "<~9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,"+
+      String to = "9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,"+
                   "O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY"+
                   "i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa" +
                   "l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G" +
-                  ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c~>";
+                  ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c";
       assertEquals( "Leviathan encode", to, a85E.encode( from ) );
    }
    @Test public void testA85StrEncode() { testStrEncode( a85E, A85Tests ); }

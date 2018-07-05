@@ -24,12 +24,30 @@ public class Base85 {
      * Encoder instances can be safely shared by multiple threads.
      */
    public static abstract class Encoder {
+      /** Calculate byte length of encoded string.
+        *
+        * @param data string to be encoded in UTF-8 bytes
+        * @return length of encoded data in byte
+        */
+      public int calcEncodedLength ( final String data ) {
+         return calcEncodedLength( data.getBytes( UTF_8 ) );
+      }
+
+      /** Calculate byte length of encoded data.
+        *
+        * @param data data to be encoded
+        * @return length of encoded data in byte
+        */
+      public int calcEncodedLength ( final byte[] data ) {
+         return calcEncodedLength( data, 0, data.length );
+      }
+
       /** Calculate byte length of encoded data.
         *
         * @param data data to be encoded
         * @param offset byte offset that data starts
         * @param length number of data bytes
-        * @return maximum length of encoded data in byte
+        * @return length of encoded data in byte
         */
       public int calcEncodedLength ( final byte[] data, final int offset, final int length ) {
          return (int) Math.ceil( length * 1.25 );
@@ -357,7 +375,7 @@ public class Base85 {
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
    }
 
-   /** This class encodes data in the Ascii85 encoding scheme as defined by Adobe.
+   /** This class encodes data in the Ascii85 encoding (Adobe variant without &lt;~ and ~&gt;).
      * Supports "z" and "y" compression, which can be disabled individually.
      * Line break is not supported.
      *
@@ -369,7 +387,16 @@ public class Base85 {
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
 
       @Override public int calcEncodedLength ( byte[] data, int offset, int length ) {
-         return super.calcEncodedLength( data, offset, length ) + 4;
+         int result = super.calcEncodedLength( data, offset, length );
+         if ( useZ || useY ) {
+            final ByteBuffer buffer = ByteBuffer.wrap( data );
+            for ( int i = offset, len = offset + length - 4 ; i <= len ; i += 4 )
+               if ( useZ && data[i] == 0 ) {
+                  if ( buffer.getInt( i ) == 0 ) result -= 4;
+               } else if ( useY && data[i] == 0x20 )
+                  if ( buffer.getInt( i ) == 0x20202020 ) result -= 4;
+         }
+         return result;
       }
 
       private boolean useZ = true;
@@ -398,8 +425,8 @@ public class Base85 {
          final int loop = rlen / 4;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array();
-         out[wi++] = '<';
-         out[wi++] = '~';
+         //out[wi++] = '<';
+         //out[wi++] = '~';
          for ( int i = loop ; i > 0 ; i-- ) {
             System.arraycopy( in, ri, buf, 0, 4 );
             ri += 4;
@@ -431,12 +458,12 @@ public class Base85 {
                if ( rlen >= 3 )
                   out[wi+3] = (byte)(( sum / 85 )+33);
             }
-            wi += rlen + 1;
-         } else
-            rlen--; // No dangling char means one less output character
-         out[wi++] = '~';
-         out[wi  ] = '>';
-         return loop * 5 + rlen + 5;
+            rlen++;
+            //wi += rlen;
+         }
+         //out[wi++] = '~';
+         //out[wi  ] = '>';
+         return loop * 5 + rlen;
       }
    }
 
