@@ -48,43 +48,38 @@ public class Base85Test {
 
    private void recurTestValidate ( byte[] ok, byte[] fail, byte[] buf, int offset, Decoder decoder ) {
       if ( offset >= buf.length ) return;
-      if ( ( offset + 1 ) % 5 == 1 )  {
+      int count = offset + 1;
+      if ( count % 5 == 1 )  {
          buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
-         testValidateFail( buf, offset, decoder ); // Wrong data length should fails
-         recurTestValidate( ok, fail, buf, offset + 1, decoder );
+         testValidateFail( buf, count, decoder );
+         recurTestValidate( ok, fail, buf, count, decoder );
          return;
       }
       for ( int i = 0, len = fail.length ; i < len ; i++ ) {
          buf[ offset ] = fail[ i ]; // Wrong data should also fails
-         testValidateFail( buf, offset, decoder );
+         testValidateFail( buf, offset + 1, decoder );
       }
       buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
-      if ( ! decoder.test( buf, 0, offset + 1 ) ) // Otherwise should pass
-         fail( failMessage( buf, -1, null ) );
-      recurTestValidate( ok, fail, buf, offset + 1, decoder );
+      if ( ! decoder.test( buf, 0, count ) ) // Otherwise should pass
+         fail( randData( buf, count ) + " should not return false" );
+      recurTestValidate( ok, fail, buf, count, decoder );
    }
 
    private void testValidateFail ( byte[] buf, int len, Decoder decoder ) {
-      len++;
-      try {
-         if ( decoder.test( buf, 0, len ) )
-            fail( failMessage( buf, len, null ) );
-      } catch ( IllegalArgumentException ignored ) {
-      } catch ( Exception ex ) { fail( failMessage( buf, len, ex ) ); }
+      if ( decoder.test( buf, 0, len ) )
+         fail( "test( " + randData( buf, len ) + ") should not return true" );
    }
-   private String failMessage ( byte[] buf, int len, Exception ex ) {
-      if ( ex != null ) ex.printStackTrace();
-      String data = "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\")";
-      if ( len >= 0 ) return data + " does not throw IllegalArgumentException when tested";
-      return data + " does not return true when tested";
+   private String randData ( byte[] buf, int len ) {
+      return "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\")";
    }
 
    private void testException ( Runnable action, Class exceptionClass, String testName ) {
       try {
          action.run();
-         fail( testName + " does not throw " + exceptionClass );
+         fail( testName + " does not throw any exception" );
       } catch ( Exception yes ) {
-         assertEquals( testName +  " throws", yes.getClass(), exceptionClass );
+         if ( ! exceptionClass.isInstance( yes ) )
+            fail( testName + " throws " + yes.getClass() + ", expected " + exceptionClass );
       }
    }
 

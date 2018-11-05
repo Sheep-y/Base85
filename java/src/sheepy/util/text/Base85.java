@@ -491,7 +491,6 @@ public class Base85 {
       /** Test that given data can be decoded correctly.
         * @param data Encoded data in ascii charset
         * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
       public boolean test ( final String data ) {
          return test( data.getBytes( US_ASCII ) );
@@ -500,7 +499,6 @@ public class Base85 {
       /** Test that given data can be decoded correctly.
         * @param data Encoded data in ascii charset
         * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
       public boolean test ( final byte[] data ) {
          return test( data, 0, data.length );
@@ -535,7 +533,11 @@ public class Base85 {
    private static abstract class SimpleDecoder extends Decoder {
       @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
          if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
-         calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
+         try {
+            calcDecodedLength( encoded_data, offset, length );
+         } catch ( IllegalArgumentException ex ) {
+            return false;
+         }
          return true;
       }
 
