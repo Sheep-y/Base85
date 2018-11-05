@@ -50,6 +50,7 @@ public class Base85 {
         * @return length of encoded data in byte
         */
       public int calcEncodedLength ( final byte[] data, final int offset, final int length ) {
+         if ( offset < 0 || length < 0 ) throw new IllegalArgumentException( "Offset and length must not be negative" );
          return (int) Math.ceil( length * 1.25 );
       }
 
@@ -175,7 +176,7 @@ public class Base85 {
          return leftover + 1;
       }
 
-      @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
+      @Override protected int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
          final int loop = rlen / 4, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );

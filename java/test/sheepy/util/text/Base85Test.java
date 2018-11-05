@@ -73,6 +73,7 @@ public class Base85Test {
       return "atob(\"" + Base64.getEncoder().encodeToString( Arrays.copyOf( buf, len ) ) + "\")";
    }
 
+   private void testException ( Runnable action, String testName ) { testException( action, Exception.class, testName ); }
    private void testException ( Runnable action, Class exceptionClass, String testName ) {
       try {
          action.run();
@@ -89,12 +90,14 @@ public class Base85Test {
       for ( int i = 0 ; i < map.length ; i += 2 )
          assertEquals( "Encode " + map[i], map[i+1], e.encode( map[i] ) );
    }
+
    public void testStrDecode ( Base85.Decoder d, String[] map ) {
       for ( int i = 0 ; i < map.length ; i += 2 ) {
          assertEquals( "Decode " + map[i+1], map[i], d.decode( map[i+1] ) );
          assertArrayEquals( "Decode " + map[i+1] + " to bytes", map[i].getBytes( UTF_8 ), d.decode( map[i+1].getBytes( US_ASCII ) ) );
       }
    }
+
    public void testByteEncode ( Base85.Encoder e, String[] map ) {
       String origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
       byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
@@ -110,6 +113,7 @@ public class Base85Test {
       e.encode( buf, 2, orig.length, output, 2 );
       assertArrayEquals( "Byte to byte direct encode offset 2", code, Arrays.copyOfRange( output, 2, code.length + 2 ) );
    }
+
    public void testByteDecode ( Base85.Decoder d, String[] map ) {
       String origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
       byte[] orig = origStr.getBytes( UTF_8 ), code = codeStr.getBytes( US_ASCII );
@@ -124,6 +128,7 @@ public class Base85Test {
       d.decode( buf, 2, code.length, output, 2 );
       assertArrayEquals( "Byte to byte direct decode offset 2", orig, Arrays.copyOfRange( output, 2, orig.length + 2 ) );
    }
+
    public void testRoundTrip ( Base85.Encoder e, Base85.Decoder d ) {
       for ( int len = 1 ; len <= 12 ; len++ ) {
          byte[] from = new byte[ len ], enc, dec;
@@ -143,14 +148,35 @@ public class Base85Test {
          }
       }
    }
-   public void testFails ( Base85.Encoder e, Base85.Decoder d ) {
+
+   public void testInvalidLength ( Base85.Encoder e, Base85.Decoder d ) {
+      byte[] buf = new byte[4];
+      Arrays.fill( buf, e.getEncodeMap()[0] );
+      testException( () -> e.encode( buf, -1, 4 ), "Encode in offset -1" );
+      testException( () -> e.encode( buf, 4, 1 ), "Encode in offset > size" );
+      testException( () -> e.encode( buf, 0, -1 ), "Encode in length -1" );
+      testException( () -> e.encode( buf, 0, 5 ), "Encode in length > size" );
+      testException( () -> e.encode( buf, 2, 4 ), "Encode in index out of bounds" );
+      testException( () -> e.encode( buf, 0, 1, buf, -1 ), "Encode out index -1" );
+      testException( () -> e.encode( buf, 0, 1, buf, 4 ), "Encode out index > size" );
+      testException( () -> e.encode( buf, 0, 1, buf, 3 ), "Encode out index out of bounds" );
+      testException( () -> d.decode( buf, -1, 4 ), "Decode in offset -1" );
+      testException( () -> d.decode( buf, 4, 1 ), "Decode in offset > size" );
+      testException( () -> d.decode( buf, 0, -1 ), "Decode in length -1" );
+      testException( () -> d.decode( buf, 0, 5 ), "Decode in length > size" );
+      testException( () -> d.decode( buf, 2, 4 ), "Decode in index out of bounds" );
+      testException( () -> d.decode( buf, 0, 1, buf, -1 ), "Decode out index -1" );
+      testException( () -> d.decode( buf, 0, 1, buf, 4 ), "Decode out index > size" );
+      testException( () -> d.decode( buf, 0, 1, buf, 3 ), "Decode out index out of bounds" );
+   }
+
+   public void testInvalidData ( Base85.Encoder e, Base85.Decoder d ) {
       testException( () -> d.decode( new byte[]{ 127, 127 } ), IllegalArgumentException.class, "Decode char(127)" );
       testException( () -> d.decode( new byte[]{ -1, -1 } ), IllegalArgumentException.class, "Decode char(-1)" );
       byte[] validCodes = e.getCharset().getBytes( US_ASCII );
       byte[] invalidCodes = reverseCharset( validCodes );
       recurTestValidate( validCodes, invalidCodes, new byte[11], 0, d );
    }
-
 
    /////////// RFC Tests ///////////
 
@@ -182,7 +208,8 @@ public class Base85Test {
    @Test public void testRfcEncode() { testByteEncode( rfcE, rfcTests ); }
    @Test public void testRfcDecode() { testByteDecode( rfcD, rfcTests ); }
    @Test public void testRfcRoundTrip() { testRoundTrip( rfcE, rfcD ); }
-   @Test public void testRfcDecodedFail() { testFails( rfcE, rfcD ); }
+   @Test public void testRfcWrongData() { testInvalidData( rfcE, rfcD ); }
+   @Test public void testRfcWrongLength() { testInvalidLength( rfcE, rfcD ); }
 
    @Test(expected = IllegalArgumentException.class) public void testRfcDecodedLenErr6() {
       rfcD.calcDecodedLength( null, 0, 6 );
@@ -213,7 +240,8 @@ public class Base85Test {
    @Test public void testZ85Encode() { testByteEncode( z85E, z85Tests ); }
    @Test public void testZ85Decode() { testByteDecode( z85D, z85Tests ); }
    @Test public void testZ85RoundTrip() { testRoundTrip( z85E, z85D ); }
-   @Test public void testZ85DecodedFail() { testFails( z85E, z85D ); }
+   @Test public void testZ85WrongData() { testInvalidData( z85E, z85D ); }
+   @Test public void testZ85WrongLength() { testInvalidLength( z85E, z85D ); }
 
    @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr6() {
       z85D.calcDecodedLength( null, 0, 6 );
@@ -258,10 +286,11 @@ public class Base85Test {
    @Test public void testA85Encode() { testByteEncode( a85E, A85Tests ); }
    @Test public void testA85Decode() { testByteDecode( a85D, A85Tests ); }
    @Test public void testA85RoundTrip() { testRoundTrip( a85E, a85D ); }
-   @Test public void testA85DecodedFail() {
-      testFails( a85E, a85D );
+   @Test public void testA85WrongData() {
+      testInvalidData( a85E, a85D );
       assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "ya" ) );
       assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "zya" ) );
    }
+   @Test public void testA85WrongLength() { testInvalidLength( a85E, a85D ); }
 
 }
