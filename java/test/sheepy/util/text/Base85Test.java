@@ -79,6 +79,15 @@ public class Base85Test {
       return data + " does not return true when tested";
    }
 
+   private void testException ( Runnable action, Class exceptionClass, String testName ) {
+      try {
+         action.run();
+         fail( testName + " does not throw " + exceptionClass );
+      } catch ( Exception yes ) {
+         assertEquals( testName +  " throws", yes.getClass(), exceptionClass );
+      }
+   }
+
    /////////// Generic Test Routines ///////////
 
    public void testStrEncode ( Base85.Encoder e, String[] map ) {
@@ -140,18 +149,8 @@ public class Base85Test {
       }
    }
    public void testFails ( Base85.Encoder e, Base85.Decoder d ) {
-      try {
-         d.decode( new byte[]{ 127, 127 } );
-         fail( "Decode char(127) does not throw Exception." );
-      } catch ( Exception yes ) {
-         assertEquals( "Decode char(127) throws", yes.getClass(), IllegalArgumentException.class );
-      }
-      try {
-         d.decode( new byte[]{ -1, -1 } );
-         fail( "Decode char(-1) does not throw Exception." );
-      } catch ( Exception yes ) {
-         assertEquals( "Decode char(-1) throws", yes.getClass(), IllegalArgumentException.class );
-      }
+      testException( () -> d.decode( new byte[]{ 127, 127 } ), IllegalArgumentException.class, "Decode char(127)" );
+      testException( () -> d.decode( new byte[]{ -1, -1 } ), IllegalArgumentException.class, "Decode char(-1)" );
       byte[] validCodes = e.getCharset().getBytes( US_ASCII );
       byte[] invalidCodes = reverseCharset( validCodes );
       recurTestValidate( validCodes, invalidCodes, new byte[11], 0, d );
@@ -231,6 +230,7 @@ public class Base85Test {
       byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
       assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
    }
+
 
    private final String[] A85Tests = {
       "", "",
