@@ -92,10 +92,8 @@ public class Base85 {
         * @param offset byte offset to start reading data
         * @param length number of byte to read
         * @return encoded Base85 encoded data in ASCII charset
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
         */
       public final byte[] encode ( final byte[] data, final int offset, final int length ) {
-         checkBounds( data, offset, length );
          byte[] out = new byte[ calcEncodedLength( data, offset, length ) ];
          int len = _encode( data, offset, length, out, 0 );
          if ( out.length == len ) return out;
@@ -109,12 +107,9 @@ public class Base85 {
         * @param out array to write encoded data to
         * @param out_offset byte offset to start writing encoded data to
         * @return number of encoded bytes
-        * @throws IllegalArgumentException if offset or length is negative, or if either array is not big enough (data may be written)
         */
       public final int encode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
          int size = calcEncodedLength( data, offset, length );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
          return _encode( data, offset, length, out, out_offset );
       }
 
@@ -149,8 +144,6 @@ public class Base85 {
         */
       public int encodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
          int size = (int) Math.ceil( length * 1.25 );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
          if ( offset != 0 || length != data.length )
             data = Arrays.copyOfRange( data, offset, offset + length );
          BigInteger blockSum = new BigInteger( 1, data ), b85 = BigInteger.valueOf( 85 );
@@ -432,7 +425,6 @@ public class Base85 {
         * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough (data won't be written)
         */
       public final byte[] decode ( final byte[] data, final int offset, final int length ) {
-         checkBounds( data, offset, length );
          byte[] result = new byte[ calcDecodedLength( data, offset, length ) ];
          try {
             int len = _decode( data, offset, length, result, 0 );
@@ -453,8 +445,6 @@ public class Base85 {
         */
       public final int decode ( final byte[] data, final int offset, final int length, final byte[] out, final int out_offset ) {
          int size = calcDecodedLength( data, offset, length );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
          try {
             _decode( data, offset, length, out, out_offset );
          } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
@@ -488,8 +478,6 @@ public class Base85 {
         */
       public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
          int size = (int) Math.ceil( length * 0.8 );
-         checkBounds( data, offset, length );
-         checkBounds( out, out_offset, size );
          BigInteger blockSum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
          byte[] map = getDecodeMap();
          try {
@@ -523,14 +511,10 @@ public class Base85 {
         * @param offset byte offset that data starts
         * @param length number of data bytes
         * @return true if data is of correct length and composed of correct characters
-        * @throws IllegalArgumentException if offset or length is negative, or if data array is not big enough
         */
       public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
 
       protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
-         try {
-            checkBounds( data, offset, length );
-         } catch ( IllegalArgumentException ignored ) { return false; }
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
             byte e = data[i];
             if ( e < 0 || ! valids[ e ] )
@@ -551,9 +535,7 @@ public class Base85 {
    private static abstract class SimpleDecoder extends Decoder {
       @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
          if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
-         try {
-            calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
-         } catch ( IllegalArgumentException ignored ) { return false; }
+         calcDecodedLength( encoded_data, offset, length ); // Throw IllegalArgumentException if length is incorrect.
          return true;
       }
 
@@ -712,7 +694,6 @@ public class Base85 {
 
       @Override public boolean test ( byte[] encoded_data, int offset, int length ) {
          try {
-            checkBounds( encoded_data, offset, length );
             int deviation = 0;
             for ( int i = offset, len = offset + length ; i < len ; i++ ) {
                byte e = encoded_data[i];
@@ -766,11 +747,6 @@ public class Base85 {
          System.arraycopy( buf, 0, out, wi, leftover );
          return wi - wo + leftover;
       }
-   }
-
-   private static void checkBounds ( byte[] data, int offset, int length ) {
-      if ( offset < 0 || length < 0 || offset + length > data.length )
-         throw new IllegalArgumentException( "Invalid decode data range" );
    }
 
    private static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
