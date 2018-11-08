@@ -30,17 +30,16 @@ function testByteEncode ( assert, e, map ) {
    let orig = StringToByte( origStr ), code = StringToByte( codeStr );
    assert.equal( codeStr, e.encodeToString( orig ), "encodeToString" );
    assert.deepEqual( code, e.encode( orig ), "Byte to byte encode" );
-   /*
-   let buf = Arrays.copyOf( orig, orig.length * 2 );
-   assert.deepEqual( code, e.encode( buf, 0, orig.length ), "Byte to byte encode offset 0" );
-   System.arraycopy( buf, 0, buf, 2, orig.length );
-   assert.deepEqual( code, e.encode( buf, 2, orig.length ), "Byte to byte encode offset 2" );
-   let output = new byte[ code.length + 2 ];
-   e.encode( orig, 0, orig.length, output, 0 );
-   assert.deepEqual( code, Arrays.copyOfRange( output, 0, code.length ), "Byte to byte direct encode offset 0" );
-   e.encode( buf, 2, orig.length, output, 2 );
-   assert.deepEqual( code, Arrays.copyOfRange( output, 2, code.length + 2 ), "Byte to byte direct encode offset 2" );
-   */
+   let buf = new Uint8Array( orig.length * 2 );
+   buf.set( orig );
+   assert.deepEqual( code, e.encode( buf.slice( 0, orig.length ) ), "Byte to byte encode offset 0" );
+   buf.copyWithin( 2, 0, orig.length );
+   assert.deepEqual( code, e.encode( buf.slice( 2, orig.length + 2 ) ), "Byte to byte encode offset 2" );
+   let output = new Uint8Array( code.length + 2 );
+   e.encode( orig, output );
+   assert.deepEqual( code, output.slice( 0, -2 ), "Byte to byte direct encode offset 0" );
+   e.encode( buf.slice( 2, orig.length + 2 ), new DataView( output.buffer, 2 ) );
+   assert.deepEqual( code, output.slice( 2 ), "Byte to byte direct encode offset 2" );
 }
 
 /////////// RFC Tests ///////////
