@@ -178,12 +178,11 @@ public class Base85 {
 
       @Override protected int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          long sum;
-         final int loop = rlen / 4, wo = wi;
+         final int wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
-         for ( int i = loop ; i > 0 ; i--, wi += 5 ) {
+         for ( int loop = rlen / 4 ; loop > 0 ; loop--, ri += 4, wi += 5 ) {
             System.arraycopy( in, ri, buf, 0, 4 );
-            ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
             out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
             out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
@@ -269,14 +268,13 @@ public class Base85 {
          boolean z, y;
          synchronized ( this ) { z = useZ; y = useY; }
          long sum;
-         final int loop = rlen / 4, wo = wi;
+         final int wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
          //out[wi++] = '<';
          //out[wi++] = '~';
-         for ( int i = loop ; i > 0 ; i-- ) {
+         for ( int loop = rlen / 4 ; loop > 0 ; loop--, ri += 4 ) {
             System.arraycopy( in, ri, buf, 0, 4 );
-            ri += 4;
             sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
             if ( z && sum == 0 ) {
                out[wi++] = 'z';

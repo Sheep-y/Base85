@@ -151,7 +151,7 @@ public class Base85Test {
 
    public void testInvalidLength ( Base85.Encoder e, Base85.Decoder d ) {
       byte[] buf = new byte[4];
-      Arrays.fill( buf, e.getEncodeMap()[0] );
+      Arrays.fill( buf, e.getEncodeMap()[0] ); // Fill in valid values in case an decode actually tries to read it
       testException( () -> e.encode( buf, -1, 4 ), "Encode in offset -1" );
       testException( () -> e.encode( buf, 4, 1 ), "Encode in offset > size" );
       testException( () -> e.encode( buf, 0, -1 ), "Encode in length -1" );
