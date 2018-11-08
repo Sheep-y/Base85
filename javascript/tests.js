@@ -21,7 +21,7 @@ function testStrEncode ( assert, e, map ) {
 function testStrDecode ( assert, d, map ) {
    for ( let i = 0 ; i < map.length ; i += 2 ) {
       assert.equal( map[i], d.decode( map[i+1] ), "Decode " + map[i+1] );
-      assert.deepEqual( map[i].getBytes( UTF_8 ), d.decode( map[i+1].getBytes( US_ASCII ) ), "Decode " + map[i+1] + " to bytes" );
+      assert.propEqual( map[i].getBytes( UTF_8 ), d.decode( map[i+1].getBytes( US_ASCII ) ), "Decode " + map[i+1] + " to bytes" );
    }
 }
 
@@ -29,17 +29,17 @@ function testByteEncode ( assert, e, map ) {
    const origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
    let orig = StringToByte( origStr ), code = StringToByte( codeStr );
    assert.equal( codeStr, e.encodeToString( orig ), "encodeToString" );
-   assert.deepEqual( code, e.encode( orig ), "Byte to byte encode" );
+   assert.propEqual( code, e.encode( orig ), "Byte to byte encode" );
    let buf = new Uint8Array( orig.length * 2 );
    buf.set( orig );
-   assert.deepEqual( code, e.encode( buf.slice( 0, orig.length ) ), "Byte to byte encode offset 0" );
+   assert.propEqual( code, e.encode( buf.slice( 0, orig.length ) ), "Byte to byte encode offset 0" );
    buf.copyWithin( 2, 0, orig.length );
-   assert.deepEqual( code, e.encode( buf.slice( 2, orig.length + 2 ) ), "Byte to byte encode offset 2" );
+   assert.propEqual( code, e.encode( buf.slice( 2, orig.length + 2 ) ), "Byte to byte encode offset 2" );
    let output = new Uint8Array( code.length + 2 );
    e.encode( orig, output );
-   assert.deepEqual( code, output.slice( 0, -2 ), "Byte to byte direct encode offset 0" );
+   assert.propEqual( code, output.slice( 0, -2 ), "Byte to byte direct encode offset 0" );
    e.encode( buf.slice( 2, orig.length + 2 ), new DataView( output.buffer, 2 ) );
-   assert.deepEqual( code, output.slice( 2 ), "Byte to byte direct encode offset 2" );
+   assert.propEqual( code, output.slice( 2 ), "Byte to byte direct encode offset 2" );
 }
 
 /////////// RFC Tests ///////////
@@ -65,7 +65,7 @@ QUnit.test( "RfcSpec", function ( assert ) {
    byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
    String encoded = "4)+k&C#VzJ4br>0wv%Yp";
    assert.equal( encoded, new String( rfcE.encodeBlockReverse( addr ), US_ASCII ), "Inet encode" );
-   assert.deepEqual( addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), "Inet encode" ) );
+   assert.propEqual( addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), "Inet encode" ) );
 } );
 */
 
