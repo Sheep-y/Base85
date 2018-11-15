@@ -114,7 +114,7 @@ export const Base85Encoder = {
    },
 
    _encode () { throw new TypeError( '_encode() is not implemented by Base85Encoder' ); },
-   getEncodeMap () { throw new TypeError( 'getEncodeMap() is not implemented by Base85Encoder' ); },
+   getEncodeMap () { return this.ENCODE_MAP; },
    getCharset() { return BufToCode( this.getEncodeMap() ); },
 };
 
@@ -155,6 +155,7 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
    },
 };
 
+
 /** This class encodes data in the Base85 encoding scheme using the character set described by IETF RFC 1924,
   * but in the efficient algorithm of Ascii85 and Z85.
   * This scheme does not use quotes, comma, or slash, and can usually be used in sql, json, csv etc. without escaping.
@@ -163,7 +164,6 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
   */
 export const Rfc1924Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
    ENCODE_MAP : StringToMap( "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~" ),
-   getEncodeMap () { return this.ENCODE_MAP; },
 } );
 
 /** This class encodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -173,10 +173,72 @@ export const Rfc1924Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
   */
 export const Z85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
    ENCODE_MAP : StringToMap( "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#" ),
-   getEncodeMap () { return this.ENCODE_MAP; },
+} );
+
+/** This class encodes data in the Ascii85 encoding (Adobe variant without &lt;~ and ~&gt;).
+  * Supports "z" and "y" compression, which can be disabled individually.
+  * Line break is not supported.
+  *
+  * Encoder instances can be safely shared by multiple threads.
+  * @see https://en.wikipedia.org/wiki/Ascii85
+  */
+export const Ascii85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
+   ENCODE_MAP : StringToMap( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ),
+
+   calcEncodedLength ( data ) {
+      data = MakeInput( data );
+      let result = super.calcEncodedLength( data );
+      const { useZ, useY } = this;
+      if ( useZ || useY ) {
+         const buffer = new Uint32Array( data.buffer.slice( data.byteOffset ), 0, parseInt( data.byteLength / 4 ) );
+         for ( let i = 0, len = buffer.length ; i <= len ; i++ )
+            if ( ( useZ && buffer[ i ] == 0 ) || ( useY && buffer[ i ] == 0x20202020 ) )
+               result -= 4;
+      }
+      return result;
+   },
+
+   useZ : true,
+   useY : true,
+
+   set zeroCompression ( compress ) { this.useZ = compress; },
+   get zeroCompression () { return this.useZ; },
+
+   set spaceCompression ( compress ) { this.useY = compress; },
+   get spaceCompression () { return this.useY; },
+
+   _encode ( data, out ) {
+      const { z, y } = this;
+      if ( ! z && ! y ) return super._encode( data, out );
+      
+      const rlen = data.byteLength;
+      if ( rlen <= 0 ) return 0;
+      const encodeMap = this.getEncodeMap(), leftover = rlen % 4;
+      let ri = data.byteOffset, wi = 0;
+      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4 ) {
+         let sum = data.getUint32( ri );
+         if ( z && sum == 0 )
+            out[wi++] = 'z';
+         else if ( y && sum == 0x20202020 )
+            out[wi++] = 'y';
+         else {
+            out[wi  ] = encodeMap[ parseInt( sum / Power4 ) ]; sum %= Power4;
+            out[wi+1] = encodeMap[ parseInt( sum / Power3 ) ]; sum %= Power3;
+            out[wi+2] = encodeMap[ parseInt( sum / Power2 ) ]; sum %= Power2;
+            out[wi+3] = encodeMap[ parseInt( sum / 85 ) ];
+            out[wi+4] = encodeMap[ sum % 85 ];
+            wi += 5
+         }
+      }
+      if ( leftover == 0 ) return wi;
+      const buf = new Uint8Array( 4 );
+      buf.set( new Uint8Array( data.buffer.slice( ri ) ) );
+      return wi + this._encodeDangling( encodeMap, out, wi, buf, leftover );
+   }
 } );
 
 export default {
    getRfc1942Encoder() { return Rfc1924Encoder; },
    getZ85Encoder() { return Z85Encoder; },
+   getAscii85Encoder() { return Ascii85Encoder; },
 };

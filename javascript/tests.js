@@ -60,6 +60,7 @@ const rfcTests = [
    "اختبارات", "*r(X8*s9p5*r(XB*r(X4",
 ];
 
+QUnit.module( "RFC 1942" );
 QUnit.test( "RfcSpec", function ( assert ) {
    if ( ! window.BigInt ) return;
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
