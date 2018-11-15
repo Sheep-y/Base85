@@ -60,14 +60,13 @@ const rfcTests = [
    "اختبارات", "*r(X8*s9p5*r(XB*r(X4",
 ];
 
-/*
 QUnit.test( "RfcSpec", function ( assert ) {
-   byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
-   String encoded = "4)+k&C#VzJ4br>0wv%Yp";
-   assert.equal( encoded, new String( rfcE.encodeBlockReverse( addr ), US_ASCII ), "Inet encode" );
-   assert.propEqual( addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), "Inet encode" ) );
+   if ( ! window.BigInt ) return;
+   const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
+   const encoded = "4)+k&C#VzJ4br>0wv%Yp";
+   assert.equal( encoded, new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), "Inet encode" );
+   //assert.propEqual( addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), "Inet encode" ) );
 } );
-*/
 
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );
 //QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rfcTests ); } );

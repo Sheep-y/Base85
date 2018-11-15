@@ -1,10 +1,11 @@
+console.log( "Initialising Base85" );
+
 // Constants used in encoding and decoding
 const Power4 = 52200625; // 85^4
 const Power3 = 614125;  // 85^3
 const Power2 = 7225;   // 85^2
 
 const TypedArrayType = Object.getPrototypeOf( Uint8Array );
-const SharedArrayBufferType = () => { try { return SharedArrayBuffer; } catch ( err ) { return ArrayBuffer; } }
 
 // Convert all compatible input to DataView
 function MakeInput ( data ) {
@@ -14,7 +15,7 @@ function MakeInput ( data ) {
       data = new TextEncoder().encode( data ); // If string, encode as utf-8 and later convert to DataView below
    if ( data instanceof TypedArrayType )
       return new DataView( data.buffer );
-   if ( data instanceof ArrayBuffer || data instanceof SharedArrayBufferType )
+   if ( data instanceof ArrayBuffer )
       return new DataView( data );
    throw new TypeError( 'Unsupported Base85 input: must be string, TypedArray, DataView, or ArrayBuffer.' );
 }
@@ -95,18 +96,15 @@ export const Base85Encoder = {
      * when the data part is exactly 16 bytes (128 bits) long.
      * Because the whole input data part is encoded as one big block,
      * this is much less efficient than the more common encodings.
-     * Output is [ out, encoded_byte_count ]
+     * Output is [ Uint8Array result, int encoded_byte_count ]
      */
    encodeBlockReverse ( data, out ) {
-      throw 'Not implemented';
       data = MakeInput( data );
       const size = this.calcEncodedLength( data ), map = this.getEncodeMap();
       out = MakeOutput( out, () => size );
-      let blockSum = BigInt( 0 ), b85 = BigInt( 85 );
-      for ( let e of data ) { // TODO: Old Uint8 code. Change to use DataView.
-         blockSum << 8;
-         blockSum += BigInt( e );
-      }
+      let blockSum = BigInt( 0 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
+      for ( let i = data.byteOffset, len = data.byteLength ; i < len ; i++ )
+         blockSum = ( blockSum << b8 ) + BigInt( data.getUint8( i ) );
       for ( let i = size - 1 ; i >= 0 ; i-- ) {
          const mod = blockSum % b85;
          blockSum = ( blockSum - mod ) / b85;
