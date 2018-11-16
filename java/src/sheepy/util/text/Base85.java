@@ -292,57 +292,6 @@ public class Base85 {
       }
    }
 
-   /** This class encodes data in the Base85 encoding scheme with a custom character set.
-     * Encoder instances can be shared by multiple threads.
-     * Map and encode methods are protected by a ReadWriteLock for thread safety.
-     */
-   public static class CustomEncoder extends SimpleEncoder {
-      private final byte[] ENCODE_MAP = new byte[85];
-      private final ReadWriteLock lock = new ReentrantReadWriteLock( true );
-      /** Create a custom encoder that use ascii characters to encode from 0 to 85.
-        * @param charset Ascii-encoded Base85 character set, must be 85 characters long with no duplicates
-        */
-      public CustomEncoder ( String charset ) { this( charset.getBytes( US_ASCII ) ); }
-      /** Create a custom encoder that use given bytes to encode from 0 to 85.
-        * @param charset Base85 character set, must be 85 bytes long with no duplicates
-        */
-      public CustomEncoder ( byte[] charset ) { setEncodeMap( charset ); }
-
-      @Override protected int _encode(byte[] in, int ri, int rlen, byte[] out, int wi) {
-         lock.readLock().lock();
-         try {
-            return super._encode(in, ri, rlen, out, wi);
-         } finally { lock.readLock().unlock(); }
-      }
-
-      @Override public int encodeBlockReverse(byte[] data, int offset, int length, byte[] out, int out_offset) {
-         lock.readLock().lock();
-         try {
-            return super.encodeBlockReverse( data, offset, length, out, out_offset );
-         } finally { lock.readLock().unlock(); }
-      }
-
-      /** Return a copy of the byte map used by this encoder.
-       * @return encoding byte map from 0 to 85
-       */
-      @Override public byte[] getEncodeMap() {
-         lock.readLock().lock();
-         try {
-            return Arrays.copyOf( ENCODE_MAP, 85 );
-         } finally { lock.readLock().unlock(); }
-      }
-      /** Copy provided byte map to internal encode map.
-        * @param charset encoding byte map from 0 to 85
-        */
-      public void setEncodeMap( byte[] charset ) {
-         lock.writeLock().lock();
-         try {
-            checkCharacterMap( charset );
-            System.arraycopy( charset, 0, ENCODE_MAP, 0, 85 );
-         } finally { lock.writeLock().unlock(); }
-      }
-   }
-
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
      * in the same style as Base64 encoder.
      * Decoder instances can be safely shared by multiple threads.
@@ -572,60 +521,6 @@ public class Base85 {
                                    map[ in[ri+3] ] * 85 +
                                    map[ in[ri+4] ] ) );
       }
-   }
-
-   /** This class decodes data in the Base85 encoding scheme with a custom character set.
-     * Decoder instances can be shared by multiple threads.
-     * Map and decode methods are protected by a ReadWriteLock for thread safety.
-     */
-   public static class CustomDecoder extends SimpleDecoder {
-      private ReadWriteLock lock = new ReentrantReadWriteLock( true );
-      private final byte[] DECODE_MAP = new byte[85];
-      /** Create a custom decoder that use ascii characters to decode to 0 to 85.
-        * @param charset Ascii-encoded Base85 character set, must be 85 characters long with no duplicates
-        */
-      public CustomDecoder ( String charset ) { this( charset.getBytes( US_ASCII ) ); }
-      /** Create a custom decoder that use given bytes to decode to 0 to 85.
-        * @param charset Base85 character set, must be 85 bytes long with no duplicates
-        */
-      public CustomDecoder ( byte[] charset ) { setDecodeMap( charset ); }
-
-
-      @Override public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
-         lock.readLock().lock();
-         try {
-            return super.decodeBlockReverse( data, offset, length, out, out_offset );
-         } finally { lock.readLock().unlock(); }
-      }
-
-      @Override protected int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
-         lock.readLock().lock();
-         try {
-            return super.decode( in, ri, rlen, out, wi );
-         } finally { lock.readLock().unlock(); }
-      }
-
-      /** Return a copy of the byte map used by this encoder.
-       * @return encoding byte map from 0 to 85
-       */
-      @Override public byte[] getDecodeMap() {
-         lock.readLock().lock();
-         try {
-            return Arrays.copyOf( DECODE_MAP, 85 );
-         } finally { lock.readLock().unlock(); }
-      }
-      /** Copy provided byte map to internal decode  map.
-        * @param charset encoding byte map from 0 to 85
-        */
-      public void setDecodeMap( byte[] charset ) {
-         lock.writeLock().lock();
-         try {
-            checkCharacterMap( charset );
-            System.arraycopy( charset, 0, DECODE_MAP, 0, 85 );
-         } finally { lock.writeLock().unlock(); }
-      }
-
-      @Override protected String getName() { return Integer.toHexString( new String( DECODE_MAP, US_ASCII ).hashCode() ); }
    }
 
    /** This class decodes data in the Base85 encoding using the character set described by IETF RFC 1924,
