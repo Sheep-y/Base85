@@ -140,18 +140,21 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
       if ( rlen <= 0 ) return 0;
       const encodeMap = this.getEncodeMap(), leftover = rlen % 4;
       let ri = data.byteOffset, wi = 0;
-      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4, wi += 5 ) {
-         let sum = data.getUint32( ri );
-         out[wi  ] = encodeMap[ parseInt( sum / Power4 ) ]; sum %= Power4;
-         out[wi+1] = encodeMap[ parseInt( sum / Power3 ) ]; sum %= Power3;
-         out[wi+2] = encodeMap[ parseInt( sum / Power2 ) ]; sum %= Power2;
-         out[wi+3] = encodeMap[ parseInt( sum / 85 ) ];
-         out[wi+4] = encodeMap[ sum % 85 ];
-      }
+      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4  )
+         wi = this._writeData( data.getUint32( ri ), encodeMap, out, wi );
       if ( leftover == 0 ) return wi;
       const buf = new Uint8Array( 4 );
       buf.set( new Uint8Array( data.buffer.slice( ri ) ) );
       return wi + this._encodeDangling( encodeMap, out, wi, buf, leftover );
+   },
+
+   _writeData ( sum, map, out, wi ) {
+      out[wi  ] = map[ parseInt( sum / Power4 ) ]; sum %= Power4;
+      out[wi+1] = map[ parseInt( sum / Power3 ) ]; sum %= Power3;
+      out[wi+2] = map[ parseInt( sum / Power2 ) ]; sum %= Power2;
+      out[wi+3] = map[ parseInt( sum / 85 ) ];
+      out[wi+4] = map[ sum % 85 ];
+      return wi + 5;
    },
 };
 
@@ -207,34 +210,15 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
    set spaceCompression ( compress ) { this.useY = compress; },
    get spaceCompression () { return this.useY; },
 
-   _encode ( data, out ) {
-      const { z, y } = this;
-      if ( ! z && ! y ) return super._encode( data, out );
-      
-      const rlen = data.byteLength;
-      if ( rlen <= 0 ) return 0;
-      const encodeMap = this.getEncodeMap(), leftover = rlen % 4;
-      let ri = data.byteOffset, wi = 0;
-      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4 ) {
-         let sum = data.getUint32( ri );
-         if ( z && sum == 0 )
-            out[wi++] = 'z';
-         else if ( y && sum == 0x20202020 )
-            out[wi++] = 'y';
-         else {
-            out[wi  ] = encodeMap[ parseInt( sum / Power4 ) ]; sum %= Power4;
-            out[wi+1] = encodeMap[ parseInt( sum / Power3 ) ]; sum %= Power3;
-            out[wi+2] = encodeMap[ parseInt( sum / Power2 ) ]; sum %= Power2;
-            out[wi+3] = encodeMap[ parseInt( sum / 85 ) ];
-            out[wi+4] = encodeMap[ sum % 85 ];
-            wi += 5
-         }
-      }
-      if ( leftover == 0 ) return wi;
-      const buf = new Uint8Array( 4 );
-      buf.set( new Uint8Array( data.buffer.slice( ri ) ) );
-      return wi + this._encodeDangling( encodeMap, out, wi, buf, leftover );
-   }
+   _writeData ( sum, map, out, wi ) {
+      if ( this.useZ && sum == 0 )
+         out[wi++] = 'z';
+      else if ( this.useY && sum == 0x20202020 )
+         out[wi++] = 'y';
+      else
+         return super._writeData( sum, map, out, wi );
+      return wi;
+   },
 } );
 
 export default {
