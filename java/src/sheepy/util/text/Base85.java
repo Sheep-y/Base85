@@ -554,11 +554,7 @@ public class Base85 {
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
          for ( int i = loop ; i > 0 ; i--, wi += 4 ) {
-            buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power4 +
-                                      decodeMap[ in[ri+1] ] * Power3 +
-                                      decodeMap[ in[ri+2] ] * Power2 +
-                                      decodeMap[ in[ri+3] ] * 85 +
-                                      decodeMap[ in[ri+4] ] ) );
+            _putData( buffer, decodeMap, in, ri );
             ri += 5;
             System.arraycopy( buf, 0, out, wi, 4 );
          }
@@ -567,6 +563,14 @@ public class Base85 {
          leftover = _decodeDangling( decodeMap, in, ri, buffer, leftover );
          System.arraycopy( buf, 0, out, wi, leftover );
          return wi - wo + leftover;
+      }
+
+      protected void _putData ( ByteBuffer buffer, byte[] map, byte[] in, int ri ) {
+         buffer.putInt( 0, (int) ( map[ in[ri  ] ] * Power4 +
+                                   map[ in[ri+1] ] * Power3 +
+                                   map[ in[ri+2] ] * Power2 +
+                                   map[ in[ri+3] ] * 85 +
+                                   map[ in[ri+4] ] ) );
       }
    }
 
@@ -721,11 +725,7 @@ public class Base85 {
                wi += 4;
             }
             if ( ri < max2 ) {
-               buffer.putInt( 0, (int) ( decodeMap[ in[ri  ] ] * Power4 +
-                                         decodeMap[ in[ri+1] ] * Power3 +
-                                         decodeMap[ in[ri+2] ] * Power2 +
-                                         decodeMap[ in[ri+3] ] * 85 +
-                                         decodeMap[ in[ri+4] ] ) );
+               _putData( buffer, decodeMap, in, ri );;
                ri += 5;
                System.arraycopy( buf, 0, out, wi, 4 );
             } else
