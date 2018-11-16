@@ -6,7 +6,7 @@ const rfcE = Base85.getRfc1942Encoder();
 //const rfcD = Base85.getRfc1942Decoder();
 const z85E = Base85.getZ85Encoder();
 //const z85D = Base85.getZ85Decoder();
-//const a85E = Base85.getAscii85Encoder();
+const a85E = Base85.getAscii85Encoder();
 //const a85D = Base85.getAscii85Decoder();
 
 /////////// Generic Test Routines ///////////
@@ -112,3 +112,47 @@ QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85T
 //QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
 
+
+
+/////////// Ascii85 Tests ///////////
+
+const a85Tests = [
+   "", "",
+   "A", "5l",
+   "AB", "5sb",
+   "ABC", "5sdp",
+   "ABCD", "5sdq,",
+   "ABCDE", "5sdq,70",
+   "ABCDEF", "5sdq,77I",
+   "ABCDEFG", "5sdq,77Kc",
+   "ABCDEFGH", "5sdq,77Kd<",
+   "\u0000\u0000\u0000\u0000", "z",
+   "    ", "y",
+   "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "+X/-V,pjuf.4Qi!/M8\\10etOA2)[BQ3BB5a4[)(q5sdq,77Kd<8P2WL9hnJ\\;,U=l<E<1'=^#$7?!^lG@:E_WAS,RgBkhF\"D/O92EH6,BF`qtRH$XgbI=;",
+   "測試中", "k.%MVWM\\adXT",
+   "اختبارات", "fVdB)fW*T&fVdB,fVdB%",
+];
+
+QUnit.module( "Ascii85" );
+QUnit.test( "A85Spec", function( assert ) {
+   const from = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
+   const to = "9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,"+
+              "O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY"+
+              "i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa" +
+              "l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G" +
+              ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c";
+   assert.propEqual( to, a85E.encode( from ), "Leviathan encode" );
+} );
+
+QUnit.test( "A85StrEncode", function( assert ) { testStrEncode( assert, a85E, a85Tests ); } );
+//QUnit.test( "A85StrDecode", function( assert ) { testStrDecode( assert, a85D, a85Tests ); } );
+QUnit.test( "A85Encode", function( assert ) { testByteEncode( assert, a85E, a85Tests ); } );
+//QUnit.test( "A85Decode", function( assert ) { testByteDecode( assert, a85D, a85Tests ); } );
+//QUnit.test( "A85RoundTrip", function( assert ) { testRoundTrip( assert, a85E, a85D ); } );
+//QUnit.test( "A85WrongData", function( assert ) {
+//   testInvalidData( assert, a85E, a85D );
+//   assert.notOk( a85D.test( "ya" ), "Ascii85 test \"ya\" should fail" );
+//   assert.notOk( a85D.test( "zya" ), "Ascii85 test \"ya\" should fail" );
+//} );
+//QUnit.test( "A85WrongLength", function( assert ) { testInvalidLength( assert, a85E, a85D ); } );

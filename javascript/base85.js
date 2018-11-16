@@ -140,7 +140,7 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
       if ( rlen <= 0 ) return 0;
       const encodeMap = this.getEncodeMap(), leftover = rlen % 4;
       let ri = data.byteOffset, wi = 0;
-      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4  )
+      for ( let loop = parseInt( rlen / 4 ) ; loop > 0 ; loop--, ri += 4 )
          wi = this._writeData( data.getUint32( ri ), encodeMap, out, wi );
       if ( leftover == 0 ) return wi;
       const buf = new Uint8Array( 4 );
@@ -212,9 +212,9 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
 
    _writeData ( sum, map, out, wi ) {
       if ( this.useZ && sum == 0 )
-         out[wi++] = 'z';
+         out[wi++] = 122; // 'z'
       else if ( this.useY && sum == 0x20202020 )
-         out[wi++] = 'y';
+         out[wi++] = 121; // 'y'
       else
          return super._writeData( sum, map, out, wi );
       return wi;
