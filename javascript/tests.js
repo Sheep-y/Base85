@@ -76,3 +76,39 @@ QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcT
 //QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongLength", function( assert ) { testInvalidLength( assert, rfcE, rfcD ); } );
+
+
+/////////// Z85 Tests ///////////
+
+const z85Tests = [
+   "", "",
+   "A", "k(",
+   "AB", "k%+",
+   "ABC", "k%^{",
+   "ABCD", "k%^}b",
+   "ABCDE", "k%^}bmf",
+   "ABCDEF", "k%^}bmmE",
+   "ABCDEFG", "k%^}bmmG=",
+   "ABCDEFGH", "k%^}bmmG^r",
+   "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#",
+      "fFLssg=mfIi5$zRv}od.xj#0]yIW<9z/xYpB98LFCx!yVk%^}bmmG^rnLhSHo?[FXqbQs(rArg6sZ0BfiX9v1aULrfcoKEudo*88ElY87bl",
+   "測試中", ">d4IRSIX:^TP",
+   "اختبارات", "/R^x8/S9P5/R^xb/R^x4",
+];
+
+QUnit.module( "Z85" );
+QUnit.test( "Z85Spec", function ( assert ) {
+   const helloWorld = Uint8Array.of( 0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B );
+   assert.equal( "HelloWorld", z85E.encodeToString( helloWorld ), "HelloWorld encode" );
+//   assert.propEqual( helloWorld, z85D.decodeToBytes( "HelloWorld" ), "HelloWorld decode" );
+} );
+
+
+QUnit.test( "Z85StrEncode", function( assert ) { testStrEncode( assert, z85E, z85Tests ); } );
+//QUnit.test( "Z85StrDecode", function( assert ) { testStrDecode( assert, z85D, z85Tests ); } );
+QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85Tests ); } );
+//QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
+//QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
+//QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
+//QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
+

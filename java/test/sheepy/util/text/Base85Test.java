@@ -235,6 +235,12 @@ public class Base85Test {
       "اختبارات", "/R^x8/S9P5/R^xb/R^x4",
    };
 
+   @Test public void testZ85Spec() {
+      byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
+      assertEquals( "HelloWorld encode", "HelloWorld", z85E.encodeToString( helloWorld ) );
+      assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
+   }
+
    @Test public void testZ85StrEncode() { testStrEncode( z85E, z85Tests ); }
    @Test public void testZ85StrDecode() { testStrDecode( z85D, z85Tests ); }
    @Test public void testZ85Encode() { testByteEncode( z85E, z85Tests ); }
@@ -248,10 +254,6 @@ public class Base85Test {
    }
    @Test(expected = IllegalArgumentException.class) public void testZ85DecodedLenErr1() {
       z85D.calcDecodedLength( null, 0, 1 );
-   }
-   @Test public void testZ85Spec() {
-      byte[] helloWorld = new byte[]{ (byte)0x86, (byte)0x4F, (byte)0xD2, (byte)0x6F, (byte)0xB5, (byte)0x59, (byte)0xF7, (byte)0x5B };
-      assertArrayEquals( "HelloWorld decode", helloWorld, z85D.decodeToBytes( "HelloWorld" ) );
    }
 
 
