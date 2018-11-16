@@ -177,24 +177,27 @@ public class Base85 {
       }
 
       @Override protected int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
-         long sum;
          final int wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
-         for ( int loop = rlen / 4 ; loop > 0 ; loop--, ri += 4, wi += 5 ) {
+         for ( int loop = rlen / 4 ; loop > 0 ; loop--, ri += 4 ) {
             System.arraycopy( in, ri, buf, 0, 4 );
-            sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-            out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
-            out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
-            out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
-            out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
+            wi = _writeData( buffer.getInt( 0 ) & 0x00000000ffffffffL, encodeMap, out, wi );
          }
          int leftover = rlen % 4;
          if ( leftover == 0 ) return wi - wo;
          buffer.putInt( 0, 0 );
          System.arraycopy( in, ri, buf, 0, leftover );
          return wi - wo + _encodeDangling( encodeMap, out, wi, buffer, leftover );
+      }
+
+      protected int _writeData ( long sum, byte[] map, byte[] out, int wi ) {
+         out[wi  ] = map[ (int) ( sum / Power4 ) ]; sum %= Power4;
+         out[wi+1] = map[ (int) ( sum / Power3 ) ]; sum %= Power3;
+         out[wi+2] = map[ (int) ( sum / Power2 ) ]; sum %= Power2;
+         out[wi+3] = map[ (int) ( sum / 85 ) ];
+         out[wi+4] = map[ (int) ( sum % 85 ) ];
+         return wi+5;
       }
    }
 
@@ -247,60 +250,45 @@ public class Base85 {
 
       private boolean useZ = true;
       private boolean useY = true;
+      private final ReadWriteLock lock = new ReentrantReadWriteLock( true );
+
       /** Set whether to enable encoding of four zeros into "z".
        *  @param compress true to enable, false to disable
        */
-      public synchronized void setZeroCompression( boolean compress ) { useZ = compress; }
+      public void setZeroCompression( boolean compress ) { lock.writeLock().lock(); try { useZ = compress; } finally { lock.writeLock().unlock(); } }
       /** Get zero compression status.
        * @return true if enabled, false if disabled
        */
-      public synchronized boolean getZeroCompression() { return useZ; }
+      public boolean getZeroCompression() { lock.readLock().lock(); try { return useZ; } finally { lock.readLock().unlock(); } }
       /** Set whether to enable encoding of four spaces into "y".*
        *  @param compress true to enable, false to disable
        */
-      public synchronized void setSpaceCompression( boolean compress ) { useY = compress; }
+      public void setSpaceCompression( boolean compress ) { lock.writeLock().lock(); try { useY = compress; } finally { lock.writeLock().unlock(); } }
       /** Get space compression status.
        * @return true if enabled, false if disabled
        */
-      public synchronized boolean getSpaceCompression() { return useY; }
+      public boolean getSpaceCompression() { lock.readLock().lock(); try { return useY; } finally { lock.readLock().unlock(); } }
 
       @Override protected int _encode( byte[] in, int ri, int rlen, byte[] out, int wi ) {
-         boolean z, y;
-         synchronized ( this ) { z = useZ; y = useY; }
-         long sum;
-         final int wo = wi;
-         final ByteBuffer buffer = ByteBuffer.allocate( 4 );
-         final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
-         //out[wi++] = '<';
-         //out[wi++] = '~';
-         for ( int loop = rlen / 4 ; loop > 0 ; loop--, ri += 4 ) {
-            System.arraycopy( in, ri, buf, 0, 4 );
-            sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
-            if ( z && sum == 0 ) {
-               out[wi++] = 'z';
-
-            } else if ( y && sum == 0x20202020 ) {
-               out[wi++] = 'y';
-
-            } else {
-
-               out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
-               out[wi+1] = encodeMap[ (int) ( sum / Power3 ) ]; sum %= Power3;
-               out[wi+2] = encodeMap[ (int) ( sum / Power2 ) ]; sum %= Power2;
-               out[wi+3] = encodeMap[ (int) ( sum / 85 ) ];
-               out[wi+4] = encodeMap[ (int) ( sum % 85 ) ];
-               wi += 5;
-            }
+         lock.readLock().lock();
+         try {
+            return super._encode( in, ri, rlen, out, wi );
+         } finally {
+            lock.readLock().unlock();
          }
-         int leftover = rlen % 4;
-         if ( leftover != 0 ) {
-            buffer.putInt( 0, 0 );
-            System.arraycopy( in, ri, buf, 0, leftover );
-            wi += _encodeDangling( encodeMap, out, wi, buffer, leftover );
-         }
-         //out[wi++] = '~';
-         //out[wi  ] = '>';
-         return wi - wo;
+      }
+
+      @Override protected int _writeData( long sum, byte[] map, byte[] out, int wi ) {
+         if ( useZ && sum == 0 )
+            out[wi++] = 'z';
+
+         else if ( useY && sum == 0x20202020 )
+            out[wi++] = 'y';
+
+         else
+            return super._writeData( sum, map, out, wi );
+
+         return wi;
       }
    }
 
@@ -309,8 +297,8 @@ public class Base85 {
      * Map and encode methods are protected by a ReadWriteLock for thread safety.
      */
    public static class CustomEncoder extends SimpleEncoder {
-      private ReadWriteLock lock = new ReentrantReadWriteLock( true );
       private final byte[] ENCODE_MAP = new byte[85];
+      private final ReadWriteLock lock = new ReentrantReadWriteLock( true );
       /** Create a custom encoder that use ascii characters to encode from 0 to 85.
         * @param charset Ascii-encoded Base85 character set, must be 85 characters long with no duplicates
         */
