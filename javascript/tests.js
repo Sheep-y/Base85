@@ -20,26 +20,26 @@ function testStrEncode ( assert, e, map ) {
 
 function testStrDecode ( assert, d, map ) {
    for ( let i = 0 ; i < map.length ; i += 2 ) {
-      assert.equal( map[i], d.decode( map[i+1] ), "Decode " + map[i+1] );
-      assert.propEqual( map[i].getBytes( UTF_8 ), d.decode( map[i+1].getBytes( US_ASCII ) ), "Decode " + map[i+1] + " to bytes" );
+      assert.equal( d.decode( map[i+1] ), map[i], "Decode " + map[i+1] );
+      assert.propEqual( d.decode( map[i+1].getBytes( US_ASCII ) ), map[i].getBytes( UTF_8 ), "Decode " + map[i+1] + " to bytes" );
    }
 }
 
 function testByteEncode ( assert, e, map ) {
    const origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
    let orig = StringToByte( origStr ), code = StringToByte( codeStr );
-   assert.equal( codeStr, e.encodeToString( orig ), "encodeToString" );
-   assert.propEqual( code, e.encode( orig ), "Byte to byte encode" );
+   assert.equal( e.encodeToString( orig ), codeStr, "encodeToString" );
+   assert.propEqual( e.encode( orig ), code, "Byte to byte encode" );
    let buf = new Uint8Array( orig.length * 2 );
    buf.set( orig );
-   assert.propEqual( code, e.encode( buf.slice( 0, orig.length ) ), "Byte to byte encode offset 0" );
+   assert.propEqual( e.encode( buf.slice( 0, orig.length ) ), code, "Byte to byte encode offset 0" );
    buf.copyWithin( 2, 0, orig.length );
-   assert.propEqual( code, e.encode( buf.slice( 2, orig.length + 2 ) ), "Byte to byte encode offset 2" );
+   assert.propEqual( e.encode( buf.slice( 2, orig.length + 2 ) ), code, "Byte to byte encode offset 2" );
    let output = new Uint8Array( code.length + 2 );
    e.encode( orig, output );
-   assert.propEqual( code, output.slice( 0, -2 ), "Byte to byte direct encode offset 0" );
+   assert.propEqual( output.slice( 0, -2 ), code, "Byte to byte direct encode offset 0" );
    e.encode( buf.slice( 2, orig.length + 2 ), new DataView( output.buffer, 2 ) );
-   assert.propEqual( code, output.slice( 2 ), "Byte to byte direct encode offset 2" );
+   assert.propEqual( output.slice( 2 ), code, "Byte to byte direct encode offset 2" );
 }
 
 /////////// RFC Tests ///////////
@@ -65,8 +65,8 @@ QUnit.test( "RfcSpec", function ( assert ) {
    if ( ! window.BigInt ) return;
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
    const encoded = "4)+k&C#VzJ4br>0wv%Yp";
-   assert.equal( encoded, new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), "Inet encode" );
-   //assert.propEqual( addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), "Inet encode" ) );
+   assert.equal( new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), encoded, "Inet encode" );
+   //assert.propEqual( rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), addr, "Inet encode" ) );
 } );
 
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );
@@ -99,8 +99,8 @@ const z85Tests = [
 QUnit.module( "Z85" );
 QUnit.test( "Z85Spec", function ( assert ) {
    const helloWorld = Uint8Array.of( 0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B );
-   assert.equal( "HelloWorld", z85E.encodeToString( helloWorld ), "HelloWorld encode" );
-//   assert.propEqual( helloWorld, z85D.decodeToBytes( "HelloWorld" ), "HelloWorld decode" );
+   assert.equal( z85E.encodeToString( helloWorld ), "HelloWorld", "HelloWorld encode" );
+//   assert.propEqual( z85D.decodeToBytes( "HelloWorld" ), helloWorld, "HelloWorld decode" );
 } );
 
 
@@ -142,7 +142,8 @@ QUnit.test( "A85Spec", function( assert ) {
               "i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa" +
               "l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G" +
               ">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c";
-   assert.propEqual( to, a85E.encode( from ), "Leviathan encode" );
+   assert.propEqual( a85E.encode( from ), to, "Leviathan encode" );
+   //assert.propEqual( a85D.decode( to ), from, "Leviathan decode" );
 } );
 
 QUnit.test( "A85StrEncode", function( assert ) { testStrEncode( assert, a85E, a85Tests ); } );
