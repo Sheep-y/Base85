@@ -8,11 +8,11 @@ const TypedArrayType = Object.getPrototypeOf( Uint8Array );
 // Convert all compatible data to DataView
 function MakeDataView ( data, size ) {
    if ( data == null || data == undefined )
-      return new DataView( new Uint8Array( size() ) );
+      return new DataView( new Uint8Array( size() ).buffer );
    if ( data instanceof DataView )
       return data;
    if ( typeof( data ) === 'string' )
-      data = new TextEncoder().encode( data ); // If string, encode as utf-8 and later convert to DataView below
+      data = new TextEncoder().encode( data );
    if ( data instanceof TypedArrayType )
       return new DataView( data.buffer );
    if ( data instanceof ArrayBuffer )
@@ -53,14 +53,21 @@ function StringToMap ( data ) {
    return new TextEncoder().encode( data );
 }
 
-function CreateClass( baseObject, constructor ) {
-   if ( constructor == undefined ) constructor = function(){};
+function CreateClass ( baseObject, map ) {
+   const constructor = function(){};
+   if ( map ) {
+      const decodeMap = baseObject.DECODE_MAP, validMap = baseObject.VALID_BYTES;
+      for ( let i = 0, len = map.length ; i < len ; i++ ) {
+         const b = map[ i ];
+         decodeMap[ b ] = i;
+         validMap [ b ] = true;
+      }
+   }
    constructor.prototype = baseObject;
    Object.assign( constructor, baseObject );
    Object.setPrototypeOf( constructor, baseObject.__proto__ );
    return constructor;
 }
-
 
 
 /* A basic encoder.  Just inherit and override ENCODE_MAP to get a functional encoder. */
@@ -218,8 +225,120 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
 
 
 
+/* A basic decoder.  Just inherit and override Name, ENCODE_MAP, and VALID_BYTES to get a functional decoder. */
+export const Base85Decoder = {
+   /** Calculate byte length of decoded data.
+     * Assumes data is correct; use test method to validate data.
+     */
+   calcDecodedLength ( data ) {
+      data = MakeUint8( data );
+      const length = data.byteLength;
+      if ( length % 5 == 1 ) throw new Error( length + " is not a valid Base85/" + this.Name + " data length." );
+      return parseInt( length * 0.8 );
+   },
+
+   decode ( data, out, forceByteOutput ) {
+      const inputIsString = typeof( data ) === 'string', outputIsProveded = out ? true : false;
+      data = MakeUint8( data );
+      out = MakeUint8( out, () => this.calcDecodedLength( data ) );
+      const len = this._decode( data, out );
+      return out;
+      //if ( outputIsProveded ) return len;
+      //if ( len !== out.length ) out = out.slice( 0, len );
+      //if ( inputIsString && ! forceByteOutput ) return BufToCode( out );
+      //return decode( data.getBytes( US_ASCII ) );
+   },
+
+   /** Decode Base85 data into a new DataView. */
+   decodeToBytes ( data ) {
+      return this.decode( data, out, true );
+   },
+
+   /** Decode the data as one block in reverse input order.
+     * This is the strict algorithm specified by RFC 1924 for IP address decoding,
+     * when the data is exactly 16 bytes (128 bits) long.
+     * Output is Uint8Array.
+     */
+   decodeBlockReverse ( data, out ) {
+      data = MakeUint8( data );
+      const size = Math.max( 0, Math.ceil( data.length * 0.8 ) ), map = this.getDecodeMap().map( e => BigInt( e ) );
+      out = MakeUint8( out, () => size );
+      let sum = BigInt( 0 ), b255 = BigInt( 255 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
+      for ( let i = data.byteOffset, len = data.byteLength ; i < len ; i++ )
+         sum = sum * b85 + map[ data[ i ] ];
+      throw 'Not Implemented';
+      //System.arraycopy( sum.toByteArray(), 0, out, out_offset, size );
+      return [ out, size ];
+   },
+
+   /** Test that given data can be decoded correctly. */
+   test ( data ) {
+      data = MakeUint8( data );
+      const valids = this.getValidBytes();
+      for ( let i = 0, len = data.length ; i < len ; i++ )
+         if ( ! valids[ data[ i ] ] ) return false;
+      try {
+         this.calcDecodedLength( data );
+      } catch ( ex ) { return false; }
+      return true;
+   },
+
+   _decodeDangling ( decodeMap, data, ri, buffer, leftover ) {
+      if ( leftover == 1 ) throw new Error( "Malformed Base85/" + getName() + " data", ex );
+      let sum = decodeMap[ data[ri  ] ] * Power4 +
+                decodeMap[ data[ri+1] ] * Power3 + 85;
+      if ( leftover >= 3 ) {
+         sum += decodeMap[ data[ri+2] ] * Power2;
+         if ( leftover >= 4 )
+            sum += decodeMap[ data[ri+3] ] * 85;
+         else
+            sum += Power2;
+      } else
+         sum += Power3 + Power2;
+      buffer.setUint32( 0, sum );
+      return leftover-1;
+   },
+
+   _decode ( data, out ) {
+      let ri = 0, wi = 0, rlen = data.byteLength, leftover = rlen % 5, loop = parseInt( rlen / 5 );
+      const decodeMap = this.getDecodeMap(), buf = new Uint32Array( 1 ), buffer = new DataView( buf.buffer ), output = new Uint32Array( out.buffer, 0, loop );
+      for ( ; loop > 0 ; loop--, wi++, ri += 5 ) {
+         this._putData( buffer, decodeMap, data, ri );
+         output[ wi ] = buf[0];
+      }
+      if ( leftover == 0 ) return wi;
+      leftover = this._decodeDangling( decodeMap, data, ri, buffer, leftover );
+      out.set( new Uint8Array( buf.buffer, 0, leftover ), wi * 4 );
+      return wi + leftover;
+   },
+
+   _putData ( buffer, map, data, ri ) {
+      buffer.setUint32( 0, map[ data[ri  ] ] * Power4 +
+                           map[ data[ri+1] ] * Power3 +
+                           map[ data[ri+2] ] * Power2 +
+                           map[ data[ri+3] ] * 85 +
+                           map[ data[ri+4] ] );
+   },
+
+   getDecodeMap() { return this.DECODE_MAP; },
+   getValidBytes() { return this.VALID_BYTES; },
+};
+
+/** This class decodes data in the Base85 encoding using the character set described by IETF RFC 1924,
+  * in the efficient algorithm of Ascii85 and Z85.
+  * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
+  * Decoder instances can be safely shared by multiple threads.
+  * @see https://tools.ietf.org/html/rfc1924
+  */
+export const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
+   DECODE_MAP : new Uint8Array( 127 ),
+   VALID_BYTES : new Array( 127 ),
+}, Rfc1924Encoder.ENCODE_MAP );
+
+
 export default {
    getRfc1942Encoder() { return Rfc1924Encoder; },
+   getRfc1942Decoder() { return Rfc1924Decoder; },
    getZ85Encoder() { return Z85Encoder; },
    getAscii85Encoder() { return Ascii85Encoder; },
 };
