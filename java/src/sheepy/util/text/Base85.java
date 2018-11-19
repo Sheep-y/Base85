@@ -19,8 +19,9 @@ public class Base85 {
    private static final long Power3 = 614125;  // 85^3
    private static final long Power2 = 7225;   // 85^2
 
-   /** This is a skeleton class for encoding data using the Base85 encoding scheme,
+   /** This is a base class for encoding data using the Base85 encoding scheme,
      * in the same style as Base64 encoder.
+     * Just override {@link #getEncodeMap()} to create a fully functional encoder.
      * Encoder instances can be safely shared by multiple threads.
      */
    public static abstract class Encoder {
@@ -157,13 +158,6 @@ public class Base85 {
          return size;
       }
 
-      protected abstract int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi );
-      protected abstract byte[] getEncodeMap();
-      public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
-   }
-
-   /* An encoder that does not support compression */
-   private static abstract class SimpleEncoder extends Encoder {
       protected int _encodeDangling ( final byte[] encodeMap, final byte[] out, final int wi, final ByteBuffer buffer, int leftover ) {
          long sum = buffer.getInt( 0 ) & 0x00000000ffffffffL;
          out[wi  ] = encodeMap[ (int) ( sum / Power4 ) ]; sum %= Power4;
@@ -176,7 +170,7 @@ public class Base85 {
          return leftover + 1;
       }
 
-      @Override protected int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
+      protected int _encode ( byte[] in, int ri, int rlen, byte[] out, int wi ) {
          final int wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), encodeMap = getEncodeMap();
@@ -199,6 +193,9 @@ public class Base85 {
          out[wi+4] = map[ (int) ( sum % 85 ) ];
          return wi+5;
       }
+
+      protected abstract byte[] getEncodeMap();
+      public String getCharset() { return new String( getEncodeMap(), US_ASCII ); }
    }
 
    /** This class encodes data in the Base85 encoding scheme using the character set described by IETF RFC 1924,
@@ -208,7 +205,7 @@ public class Base85 {
      * Encoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924
      */
-   public static class Rfc1924Encoder extends SimpleEncoder {
+   public static class Rfc1924Encoder extends Encoder {
       private static final byte[] ENCODE_MAP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
    }
@@ -219,7 +216,7 @@ public class Base85 {
      * Encoder instances can be safely shared by multiple threads.
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
-   public static class Z85Encoder extends SimpleEncoder {
+   public static class Z85Encoder extends Encoder {
       private static final byte[] ENCODE_MAP = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
    }
@@ -231,7 +228,7 @@ public class Base85 {
      * Encoder instances can be safely shared by multiple threads.
      * @see https://en.wikipedia.org/wiki/Ascii85
      */
-   public static class Ascii85Encoder extends SimpleEncoder {
+   public static class Ascii85Encoder extends Encoder {
       private static final byte[] ENCODE_MAP = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu".getBytes( US_ASCII );
       @Override protected byte[] getEncodeMap() { return ENCODE_MAP; }
 
@@ -293,7 +290,8 @@ public class Base85 {
    }
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
-     * in the same style as Base64 encoder.
+     * in the same style as Base64 decoder.
+     * Just override {@link #getEncodeMap()} to create a fully functional decoder.
      * Decoder instances can be safely shared by multiple threads.
      */
    public static abstract class Decoder {
@@ -326,6 +324,7 @@ public class Base85 {
         * @return number of byte of decoded data
         */
       public int calcDecodedLength ( final byte[] data, final int offset, final int length ) {
+         if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/" + getName() + " data length." );
          return (int) ( length * 0.8 );
       }
 
@@ -454,32 +453,16 @@ public class Base85 {
             if ( e < 0 || ! valids[ e ] )
                return false;
          }
-         return true;
-      }
-
-      protected RuntimeException throwMalformed ( Exception ex ) {
-         throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data", ex );
-      }
-
-      protected abstract int _decode ( byte[] in, int ri, int rlen, byte[] out, int wi );
-      protected abstract byte[] getDecodeMap();
-      protected abstract String getName();
-   }
-
-   private static abstract class SimpleDecoder extends Decoder {
-      @Override protected boolean _test( byte[] encoded_data, int offset, int length, boolean[] valids ) {
-         if ( ! super._test( encoded_data, offset, length, valids ) ) return false;
          try {
-            calcDecodedLength( encoded_data, offset, length );
+            calcDecodedLength( data, offset, length );
          } catch ( IllegalArgumentException ex ) {
             return false;
          }
          return true;
       }
 
-      @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
-         if ( length % 5 == 1 ) throw new IllegalArgumentException( length + " is not a valid Base85/" + getName() + " data length." );
-         return super.calcDecodedLength( encoded_data, offset, length );
+      protected RuntimeException throwMalformed ( Exception ex ) {
+         throw new IllegalArgumentException( "Malformed Base85/" + getName() + " data", ex );
       }
 
       protected int _decodeDangling ( final byte[] decodeMap, final byte[] in, final int ri, final ByteBuffer buffer, int leftover ) {
@@ -498,7 +481,7 @@ public class Base85 {
          return leftover-1;
       }
 
-      @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
+      protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
          final int loop = rlen / 5, wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
@@ -521,6 +504,9 @@ public class Base85 {
                                    map[ in[ri+3] ] * 85 +
                                    map[ in[ri+4] ] ) );
       }
+
+      protected abstract byte[] getDecodeMap();
+      protected abstract String getName();
    }
 
    /** This class decodes data in the Base85 encoding using the character set described by IETF RFC 1924,
@@ -529,7 +515,7 @@ public class Base85 {
      * Decoder instances can be safely shared by multiple threads.
      * @see https://tools.ietf.org/html/rfc1924
      */
-   public static class Rfc1924Decoder extends SimpleDecoder {
+   public static class Rfc1924Decoder extends Decoder {
       private static final byte[] DECODE_MAP = new byte[127];
       private static final boolean[] VALID_BYTES = new boolean[255];
       static {
@@ -545,7 +531,7 @@ public class Base85 {
      * Decoder instances can be safely shared by multiple threads.
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
-   public static class Z85Decoder extends SimpleDecoder {
+   public static class Z85Decoder extends Decoder {
       private static final byte[] DECODE_MAP = new byte[126];
       private static final boolean[] VALID_BYTES = new boolean[255];
       static {
@@ -562,7 +548,7 @@ public class Base85 {
      * Decoder instances can be safely shared by multiple threads.
      * @see https://en.wikipedia.org/wiki/Ascii85
      */
-   private static class Ascii85Decoder extends SimpleDecoder {
+   private static class Ascii85Decoder extends Decoder {
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          int deflated = length, len = offset + length, i;
          for ( i = offset ; i < len ; i += 5 )

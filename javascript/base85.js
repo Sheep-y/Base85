@@ -1,5 +1,3 @@
-console.log( "Initialising Base85" );
-
 // Constants used in encoding and decoding
 const Power4 = 52200625; // 85^4
 const Power3 = 614125;  // 85^3
@@ -58,10 +56,7 @@ function CreateClass( baseObject, constructor ) {
    return constructor;
 }
 
-/** This is a skeleton class for encoding data using the Base85 encoding scheme,
-  * in the same style as Base64 encoder.
-  * Encoder instances can be safely shared by multiple threads.
-  */
+/* A basic encoder.  Just override getEncodeMap() and it should work. */
 export const Base85Encoder = {
 
    /** Calculate the max encoded byte length of a given input data. */
@@ -113,16 +108,6 @@ export const Base85Encoder = {
       return [ out, size ];
    },
 
-   _encode () { throw new TypeError( '_encode() is not implemented by Base85Encoder' ); },
-   getEncodeMap () { return this.ENCODE_MAP; },
-   getCharset() { return BufToCode( this.getEncodeMap() ); },
-};
-
-
-
-/* An encoder that does not support compression */
-export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
-
    _encodeDangling ( encodeMap, out, wi, buf, leftover ) {
       let sum = new DataView( buf.buffer ).getUint32();
       out[wi  ] = encodeMap[ parseInt( sum / Power4 ) ]; sum %= Power4;
@@ -156,7 +141,11 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
       out[wi+4] = map[ sum % 85 ];
       return wi + 5;
    },
+
+   getEncodeMap () { return this.ENCODE_MAP; },
+   getCharset() { return BufToCode( this.getEncodeMap() ); },
 };
+
 
 
 /** This class encodes data in the Base85 encoding scheme using the character set described by IETF RFC 1924,
@@ -165,7 +154,7 @@ export const Base85SimpleEncoder = { __proto__ : Base85Encoder,
   *
   * @see https://tools.ietf.org/html/rfc1924
   */
-export const Rfc1924Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
+export const Rfc1924Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~" ),
 } );
 
@@ -174,7 +163,7 @@ export const Rfc1924Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
   *
   * @see https://rfc.zeromq.org/spec:32/Z85/
   */
-export const Z85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
+export const Z85Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#" ),
 } );
 
@@ -185,7 +174,7 @@ export const Z85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
   * Encoder instances can be safely shared by multiple threads.
   * @see https://en.wikipedia.org/wiki/Ascii85
   */
-export const Ascii85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
+export const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ),
 
    calcEncodedLength ( data ) {
@@ -220,6 +209,8 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85SimpleEncoder,
       return wi;
    },
 } );
+
+
 
 export default {
    getRfc1942Encoder() { return Rfc1924Encoder; },
