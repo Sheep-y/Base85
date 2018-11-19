@@ -483,12 +483,11 @@ public class Base85 {
       }
 
       protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
-         final int loop = rlen / 5, wo = wi;
+         final int wo = wi;
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
-         for ( int i = loop ; i > 0 ; i--, wi += 4 ) {
+         for ( int loop = rlen / 5 ; loop > 0 ; loop--, wi += 4, ri += 5 ) {
             _putData( buffer, decodeMap, in, ri );
-            ri += 5;
             System.arraycopy( buf, 0, out, wi, 4 );
          }
          int leftover = rlen % 5;
@@ -534,7 +533,7 @@ public class Base85 {
      * @see https://rfc.zeromq.org/spec:32/Z85/
      */
    public static class Z85Decoder extends Decoder {
-      private static final byte[] DECODE_MAP = new byte[126];
+      private static final byte[] DECODE_MAP = new byte[127];
       private static final boolean[] VALID_BYTES = new boolean[255];
       static {
          buildDecodeMap( Z85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
@@ -584,7 +583,7 @@ public class Base85 {
          return true;
       }
 
-      private static final byte[] DECODE_MAP = new byte[126];
+      private static final byte[] DECODE_MAP = new byte[127];
       private static final boolean[] VALID_BYTES = new boolean[255];
       static {
          buildDecodeMap( Ascii85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
