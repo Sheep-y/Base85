@@ -291,7 +291,7 @@ public class Base85 {
 
    /** This is a skeleton class for decoding data in the Base85 encoding scheme.
      * in the same style as Base64 decoder.
-     * Just override {@link #getEncodeMap()} to create a fully functional decoder.
+     * Just override {@link #getEncodeMap()} and {@link #getName()} to create a fully functional decoder.
      * Decoder instances can be safely shared by multiple threads.
      */
    public static abstract class Decoder {
@@ -445,9 +445,10 @@ public class Base85 {
         * @param length number of data bytes
         * @return true if data is of correct length and composed of correct characters
         */
-      public boolean test ( final byte[] data, final int offset, final int length ) { throw new UnsupportedOperationException( "Not implemented" ); }
+      public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length ); }
 
-      protected boolean _test( final byte[] data, final int offset, final int length, final boolean[] valids ) {
+      protected boolean _test( final byte[] data, final int offset, final int length ) {
+         boolean[] valids = getValidBytes();
          for ( int i = offset, len = offset + length ; i < len ; i++ ) {
             byte e = data[i];
             if ( e < 0 || ! valids[ e ] )
@@ -506,6 +507,7 @@ public class Base85 {
       }
 
       protected abstract byte[] getDecodeMap();
+      protected abstract boolean[] getValidBytes();
       protected abstract String getName();
    }
 
@@ -523,7 +525,7 @@ public class Base85 {
       }
       @Override protected String getName() { return "RFC1924"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, VALID_BYTES ); }
+      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -539,7 +541,7 @@ public class Base85 {
       }
       @Override protected String getName() { return "Z85"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
-      @Override public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length, VALID_BYTES ); }
+      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
    }
 
    /** This class decodes Ascii85 encoded data (Adobe variant without &lt;~ and ~&gt;).
@@ -589,6 +591,7 @@ public class Base85 {
       }
       @Override protected String getName() { return "Ascii85"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
+      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
 
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
          final int re = ri + rlen, wo = wi;
