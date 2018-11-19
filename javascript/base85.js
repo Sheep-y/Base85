@@ -5,8 +5,10 @@ const Power2 = 7225;   // 85^2
 
 const TypedArrayType = Object.getPrototypeOf( Uint8Array );
 
-// Convert all compatible input to DataView
-function MakeInput ( data ) {
+// Convert all compatible data to DataView
+function MakeDataView ( data, size ) {
+   if ( data == null || data == undefined )
+      return new DataView( new Uint8Array( size() ) );
    if ( data instanceof DataView )
       return data;
    if ( typeof( data ) === 'string' )
@@ -15,21 +17,24 @@ function MakeInput ( data ) {
       return new DataView( data.buffer );
    if ( data instanceof ArrayBuffer )
       return new DataView( data );
-   throw new TypeError( 'Unsupported Base85 input: must be string, TypedArray, DataView, or ArrayBuffer.' );
+   throw new TypeError( 'Unsupported Base85 input/output: must be string, TypedArray, DataView, or ArrayBuffer.' );
 }
 
 // Convert all compatible output to Uint8Array
-function MakeOutput ( data, size ) {
-   if ( ! data ) data = new Uint8Array( size() );
+function MakeUint8 ( data, size ) {
+   if ( data == null || data == undefined )
+      return new Uint8Array( size() );
    if ( data instanceof Uint8Array )
       return data;
+   if ( typeof( data ) === 'string' )
+      return new TextEncoder().encode( data );
    if ( data instanceof TypedArrayType )
       return new Uint8Array( data.buffer );
    if ( data instanceof DataView )
       return new Uint8Array( data.buffer, data.byteOffset, data.byteLength );
    if ( data instanceof ArrayBuffer || data instanceof SharedArrayBufferType )
       return new Uint8Array( data );
-   throw new TypeError( 'Unsupported Base85 output: must be TypedArray, DataView, or ArrayBuffer' );
+   throw new TypeError( 'Unsupported Base85 input/output: must be string, TypedArray, DataView, or ArrayBuffer' );
 }
 
 function BufToText ( data ) {
@@ -56,13 +61,14 @@ function CreateClass( baseObject, constructor ) {
    return constructor;
 }
 
-/* A basic encoder.  Just override getEncodeMap() and it should work. */
+
+
+/* A basic encoder.  Just inherit and override ENCODE_MAP to get a functional encoder. */
 export const Base85Encoder = {
 
    /** Calculate the max encoded byte length of a given input data. */
    calcEncodedLength ( data ) {
-      data = MakeInput( data );
-      return ~~Math.ceil( data.byteLength * 1.25 );
+      return ~~Math.ceil( MakeDataView( data ).byteLength * 1.25 );
    },
 
    /** Encode data.
@@ -72,8 +78,8 @@ export const Base85Encoder = {
     */
    encode ( data, out ) {
       const inputIsString = typeof( data ) === 'string', outputIsProveded = out ? true : false;
-      data = MakeInput( data );
-      out = MakeOutput( out, () => this.calcEncodedLength( data ) );
+      data = MakeDataView( data );
+      out = MakeUint8( out, () => this.calcEncodedLength( data ) );
       const len = this._encode( data, out );
       if ( outputIsProveded ) return len;
       if ( len !== out.length ) out = out.slice( 0, len );
@@ -94,15 +100,15 @@ export const Base85Encoder = {
      * Output is [ Uint8Array result, int encoded_byte_count ]
      */
    encodeBlockReverse ( data, out ) {
-      data = MakeInput( data );
+      data = MakeDataView( data );
       const size = this.calcEncodedLength( data ), map = this.getEncodeMap();
-      out = MakeOutput( out, () => size );
-      let blockSum = BigInt( 0 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
+      out = MakeUint8( out, () => size );
+      let sum = BigInt( 0 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
       for ( let i = data.byteOffset, len = data.byteLength ; i < len ; i++ )
-         blockSum = ( blockSum << b8 ) + BigInt( data.getUint8( i ) );
+         sum = ( sum << b8 ) + BigInt( data.getUint8( i ) );
       for ( let i = size - 1 ; i >= 0 ; i-- ) {
-         const mod = blockSum % b85;
-         blockSum = ( blockSum - mod ) / b85;
+         const mod = sum % b85;
+         sum = ( sum - mod ) / b85;
          out[ i ] = map[ mod ];
       }
       return [ out, size ];
@@ -178,7 +184,7 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ),
 
    calcEncodedLength ( data ) {
-      data = MakeInput( data );
+      data = MakeDataView( data );
       let result = super.calcEncodedLength( data );
       const { useZ, useY } = this;
       if ( useZ || useY ) {

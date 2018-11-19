@@ -148,12 +148,12 @@ public class Base85 {
          int size = (int) Math.ceil( length * 1.25 );
          if ( offset != 0 || length != data.length )
             data = Arrays.copyOfRange( data, offset, offset + length );
-         BigInteger blockSum = new BigInteger( 1, data ), b85 = BigInteger.valueOf( 85 );
+         BigInteger sum = new BigInteger( 1, data ), b85 = BigInteger.valueOf( 85 );
          byte[] map = getEncodeMap();
          for ( int i = size + out_offset - 1 ; i >= out_offset ; i-- ) {
-            BigInteger[] mod = blockSum.divideAndRemainder( b85 );
+            BigInteger[] mod = sum.divideAndRemainder( b85 );
             out[ i ] = map[ mod[1].intValue() ];
-            blockSum = mod[0];
+            sum = mod[0];
          }
          return size;
       }
@@ -413,13 +413,13 @@ public class Base85 {
         */
       public int decodeBlockReverse ( byte[] data, int offset, int length, byte[] out, int out_offset ) {
          int size = (int) Math.ceil( length * 0.8 );
-         BigInteger blockSum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
+         BigInteger sum = BigInteger.ZERO, b85 = BigInteger.valueOf( 85 );
          byte[] map = getDecodeMap();
          try {
             for ( int i = offset, len = offset + length ; i < len ; i++ )
-               blockSum = blockSum.multiply( b85 ).add( BigInteger.valueOf( map[ data[ i ] ] ) );
+               sum = sum.multiply( b85 ).add( BigInteger.valueOf( map[ data[ i ] ] ) );
          } catch ( ArrayIndexOutOfBoundsException ex ) { throwMalformed( ex ); }
-         System.arraycopy( blockSum.toByteArray(), 0, out, out_offset, size );
+         System.arraycopy( sum.toByteArray(), 0, out, out_offset, size );
          return size;
       }
 
@@ -471,7 +471,7 @@ public class Base85 {
          long sum = decodeMap[ in[ri  ] ] * Power4 +
                     decodeMap[ in[ri+1] ] * Power3 + 85;
          if ( leftover >= 3 ) {
-            sum   += decodeMap[ in[ri+2] ] * Power2;
+            sum += decodeMap[ in[ri+2] ] * Power2;
             if ( leftover >= 4 )
                sum += decodeMap[ in[ri+3] ] * 85;
             else
