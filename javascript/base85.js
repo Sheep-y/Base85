@@ -158,8 +158,7 @@ export const Base85Encoder = {
    getEncodeMap () { return this.ENCODE_MAP; },
    getCharset() { return BufToCode( this.getEncodeMap() ); },
 };
-
-
+if ( typeof( BigInt ) == 'undefined' ) delete Base85Encoder.encodeBlockReverse;
 
 /** This class encodes data in the Base85 encoding scheme using the character set described by IETF RFC 1924,
   * but in the efficient algorithm of Ascii85 and Z85.
@@ -323,6 +322,7 @@ export const Base85Decoder = {
    getDecodeMap() { return this.DECODE_MAP; },
    getValidBytes() { return this.VALID_BYTES; },
 };
+if ( typeof( BigInt ) == 'undefined' ) delete Base85Decoder.decodeBlockReverse;
 
 /** This class decodes data in the Base85 encoding using the character set described by IETF RFC 1924,
   * in the efficient algorithm of Ascii85 and Z85.

@@ -62,7 +62,8 @@ const rfcTests = [
 
 QUnit.module( "RFC 1942" );
 QUnit.test( "RfcSpec", function ( assert ) {
-   if ( ! window.BigInt ) return;
+   if ( ! rfcE.encodeBlockReverse )
+      return assert.ok( true, 'No BigInt support; test bypassed' );
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
    const encoded = "4)+k&C#VzJ4br>0wv%Yp";
    assert.equal( new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), encoded, "Inet encode" );
