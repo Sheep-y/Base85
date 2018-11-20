@@ -241,15 +241,14 @@ export const Base85Decoder = {
       data = MakeUint8( data );
       out = MakeUint8( out, () => this.calcDecodedLength( data ) );
       const len = this._decode( data, out );
+      if ( ! forceByteOutput && outputIsProveded ) return len;
+      if ( len !== out.byteLength ) out = out.slice( 0, len );
+      if ( ! forceByteOutput && inputIsString ) return BufToText( out );
       return out;
-      //if ( outputIsProveded ) return len;
-      //if ( len !== out.length ) out = out.slice( 0, len );
-      //if ( inputIsString && ! forceByteOutput ) return BufToCode( out );
-      //return decode( data.getBytes( US_ASCII ) );
    },
 
    /** Decode Base85 data into a new DataView. */
-   decodeToBytes ( data ) {
+   decodeToBytes ( data, out ) {
       return this.decode( data, out, true );
    },
 
@@ -301,14 +300,15 @@ export const Base85Decoder = {
    _decode ( data, out ) {
       let ri = 0, wi = 0, rlen = data.byteLength, leftover = rlen % 5, loop = parseInt( rlen / 5 );
       const decodeMap = this.getDecodeMap(), buf = new Uint32Array( 1 ), buffer = new DataView( buf.buffer ), output = new Uint32Array( out.buffer, 0, loop );
-      for ( ; loop > 0 ; loop--, wi++, ri += 5 ) {
+      for ( ; wi < loop ; wi++, ri += 5 ) {
          this._putData( buffer, decodeMap, data, ri );
          output[ wi ] = buf[0];
       }
+      wi *= 4; // Loop to byte length
       if ( leftover == 0 ) return wi;
       leftover = this._decodeDangling( decodeMap, data, ri, buffer, leftover );
-      out.set( new Uint8Array( buf.buffer, 0, leftover ), wi * 4 );
-      return wi + leftover;
+      out.set( new Uint8Array( buf.buffer, 0, leftover ), wi );
+      return wi * 4 + leftover;
    },
 
    _putData ( buffer, map, data, ri ) {

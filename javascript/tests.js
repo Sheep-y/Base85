@@ -3,7 +3,7 @@ import Base85 from './base85.js';
 window.Base85 = Base85; // For browser console debug
 
 const rfcE = Base85.getRfc1942Encoder();
-//const rfcD = Base85.getRfc1942Decoder();
+const rfcD = Base85.getRfc1942Decoder();
 const z85E = Base85.getZ85Encoder();
 //const z85D = Base85.getZ85Decoder();
 const a85E = Base85.getAscii85Encoder();
@@ -19,9 +19,10 @@ function testStrEncode ( assert, e, map ) {
 }
 
 function testStrDecode ( assert, d, map ) {
+   const encoder = new TextEncoder();
    for ( let i = 0 ; i < map.length ; i += 2 ) {
       assert.equal( d.decode( map[i+1] ), map[i], "Decode " + map[i+1] );
-      assert.propEqual( d.decode( map[i+1].getBytes( US_ASCII ) ), map[i].getBytes( UTF_8 ), "Decode " + map[i+1] + " to bytes" );
+      assert.propEqual( d.decode( encoder.encode( map[i+1] ) ), encoder.encode( map[i] ), "Decode " + map[i+1] + " to bytes" );
    }
 }
 
@@ -63,7 +64,7 @@ const rfcTests = [
 QUnit.module( "RFC 1942" );
 QUnit.test( "RfcSpec", function ( assert ) {
    if ( ! rfcE.encodeBlockReverse )
-      return assert.ok( true, 'No BigInt support; test bypassed' );
+      return assert.ok( true, 'No BigInt support; test bypassed' ); // Dummy test so that QUnit does not report failure
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
    const encoded = "4)+k&C#VzJ4br>0wv%Yp";
    assert.equal( new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), encoded, "Inet encode" );
@@ -71,7 +72,7 @@ QUnit.test( "RfcSpec", function ( assert ) {
 } );
 
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );
-//QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rfcTests ); } );
+QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rfcTests ); } );
 QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcTests ); } );
 //QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
 //QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
