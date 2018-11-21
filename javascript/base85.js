@@ -32,7 +32,7 @@ function MakeUint8 ( data, size ) {
       return new Uint8Array( data.buffer );
    if ( data instanceof DataView )
       return new Uint8Array( data.buffer, data.byteOffset, data.byteLength );
-   if ( data instanceof ArrayBuffer || data instanceof SharedArrayBufferType )
+   if ( data instanceof ArrayBuffer )
       return new Uint8Array( data );
    throw new TypeError( 'Unsupported Base85 input/output: must be string, TypedArray, DataView, or ArrayBuffer' );
 }
@@ -282,7 +282,7 @@ export const Base85Decoder = {
    },
 
    _decodeDangling ( decodeMap, data, ri, buffer, leftover ) {
-      if ( leftover == 1 ) throw new Error( "Malformed Base85/" + getName() + " data", ex );
+      if ( leftover == 1 ) throw new Error( "Malformed Base85/" + this.Name + " data" );
       let sum = decodeMap[ data[ri  ] ] * Power4 +
                 decodeMap[ data[ri+1] ] * Power3 + 85;
       if ( leftover >= 3 ) {
@@ -298,13 +298,12 @@ export const Base85Decoder = {
    },
 
    _decode ( data, out ) {
-      let ri = 0, wi = 0, rlen = data.byteLength, leftover = rlen % 5, loop = parseInt( rlen / 5 );
-      const decodeMap = this.getDecodeMap(), buf = new Uint32Array( 1 ), buffer = new DataView( buf.buffer ), output = new Uint32Array( out.buffer, 0, loop );
-      for ( ; wi < loop ; wi++, ri += 5 ) {
+      let ri = 0, wi = 0, rlen = data.byteLength, leftover = rlen % 5;
+      const decodeMap = this.getDecodeMap(), buf = new Uint8Array( 4 ), buffer = new DataView( buf.buffer );
+      for ( let loop = parseInt( rlen / 5 ) ; loop > 0 ; loop--, ri += 5, wi += 4 ) {
          this._putData( buffer, decodeMap, data, ri );
-         output[ wi ] = buf[0];
+         out.set( buf, wi );
       }
-      wi *= 4; // Loop to byte length
       if ( leftover == 0 ) return wi;
       leftover = this._decodeDangling( decodeMap, data, ri, buffer, leftover );
       out.set( new Uint8Array( buf.buffer, 0, leftover ), wi );
@@ -333,6 +332,7 @@ if ( typeof( BigInt ) == 'undefined' ) delete Base85Decoder.decodeBlockReverse;
 export const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
    VALID_BYTES : new Array( 127 ),
+   Name : "RFC1924",
 }, Rfc1924Encoder.ENCODE_MAP );
 
 

@@ -28,20 +28,37 @@ function testStrDecode ( assert, d, map ) {
 
 function testByteEncode ( assert, e, map ) {
    const origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
-   let orig = StringToByte( origStr ), code = StringToByte( codeStr );
+   const orig = StringToByte( origStr ), code = StringToByte( codeStr );
    assert.equal( e.encodeToString( orig ), codeStr, "encodeToString" );
    assert.propEqual( e.encode( orig ), code, "Byte to byte encode" );
-   let buf = new Uint8Array( orig.length * 2 );
+   const buf = new Uint8Array( orig.length * 2 );
    buf.set( orig );
    assert.propEqual( e.encode( buf.slice( 0, orig.length ) ), code, "Byte to byte encode offset 0" );
    buf.copyWithin( 2, 0, orig.length );
    assert.propEqual( e.encode( buf.slice( 2, orig.length + 2 ) ), code, "Byte to byte encode offset 2" );
-   let output = new Uint8Array( code.length + 2 );
+   const output = new Uint8Array( code.length + 2 );
    e.encode( orig, output );
    assert.propEqual( output.slice( 0, -2 ), code, "Byte to byte direct encode offset 0" );
    e.encode( buf.slice( 2, orig.length + 2 ), new DataView( output.buffer, 2 ) );
    assert.propEqual( output.slice( 2 ), code, "Byte to byte direct encode offset 2" );
 }
+
+function testByteDecode ( assert, d, map ) {
+   const origStr = map[ map.length - 2 ], codeStr = map[ map.length - 1 ];
+   const orig = StringToByte( origStr ), code = StringToByte( codeStr );
+   assert.propEqual( d.decode( code ), orig, "Byte to byte decode" );
+   const buf = new Uint8Array( code.length * 2 );
+   buf.set( code );
+   assert.propEqual( d.decode( buf.slice( 0, code.length ) ), orig, "Byte to byte decode offset 0" );
+   buf.copyWithin( 2, 0, code.length );
+   assert.propEqual( d.decode( buf.slice( 2, code.length + 2 ) ), orig, "Byte to byte decode offset 2" );
+   const output = new Uint8Array( orig.length + 2 );
+   d.decode( code, output );
+   assert.propEqual( output.slice( 0, -2 ), orig, "Byte to byte direct decode offset 0" );
+   d.decode( buf.slice( 2, code.length + 2 ), new DataView( output.buffer, 2 ) );
+   assert.propEqual( output.slice( 2 ), orig, "Byte to byte direct decode offset 2" );
+}
+
 
 /////////// RFC Tests ///////////
 
@@ -74,7 +91,7 @@ QUnit.test( "RfcSpec", function ( assert ) {
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );
 QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rfcTests ); } );
 QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcTests ); } );
-//QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
+QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
 //QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongLength", function( assert ) { testInvalidLength( assert, rfcE, rfcD ); } );
