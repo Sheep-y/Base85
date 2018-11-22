@@ -59,6 +59,26 @@ function testByteDecode ( assert, d, map ) {
    assert.propEqual( output.slice( 2 ), orig, "Byte to byte direct decode offset 2" );
 }
 
+function testRoundTrip ( assert, e, d ) {
+   for ( let len = 1 ; len <= 12 ; len++ ) {
+      const from = new Uint8Array( len );
+      for ( let v = 0 ; v <= 255 ; v++ ) {
+         from.fill( v );
+         const test = `byte[${len}]{${v}}`;
+         try {
+            const enc = e.encode( from );
+            assert.ok( d.test( enc ), test + " encoded data test." );
+            assert.equal( e.calcEncodedLength( from ), enc.length, test + " encoded length" );
+            const dec = d.decode( enc );
+            assert.equal( d.calcDecodedLength( enc ), dec.length, test + " decoded length" );
+            assert.propEqual( dec, from, test + " round trip." );
+         } catch ( ex ) {
+            fail( test + " round trip throws " + ex );
+         };
+      }
+   }
+}
+
 
 /////////// RFC Tests ///////////
 
@@ -92,7 +112,7 @@ QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rf
 QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rfcTests ); } );
 QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcTests ); } );
 QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
-//QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
+QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongLength", function( assert ) { testInvalidLength( assert, rfcE, rfcD ); } );
 
@@ -127,7 +147,7 @@ QUnit.test( "Z85StrEncode", function( assert ) { testStrEncode( assert, z85E, z8
 QUnit.test( "Z85StrDecode", function( assert ) { testStrDecode( assert, z85D, z85Tests ); } );
 QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85Tests ); } );
 QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
-//QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
+QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
 

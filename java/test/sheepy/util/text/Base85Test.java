@@ -137,13 +137,13 @@ public class Base85Test {
             String test = "byte[" + len + "]{" + v + "} ";
             try {
                enc = e.encode( from );
-               assertTrue( test + "encoded data test.", d.test( enc ) );
-               assertEquals( test + "encoded length", enc.length, e.calcEncodedLength( from ) );
+               assertTrue( test + " encoded data test.", d.test( enc ) );
+               assertEquals( test + " encoded length", enc.length, e.calcEncodedLength( from ) );
                dec = d.decode( enc );
-               assertEquals( test + "decoded length", dec.length, d.calcDecodedLength( enc ) );
-               assertArrayEquals( test + "round trip.", from, dec );
+               assertEquals( test + " decoded length", dec.length, d.calcDecodedLength( enc ) );
+               assertArrayEquals( test + " round trip.", from, dec );
             } catch ( Exception ex ) {
-               fail( "byte[" + len + "]{" + v + "} round trip throws " + ex );
+               fail( test + " round trip throws " + ex );
             };
          }
       }
