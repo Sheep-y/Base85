@@ -64,7 +64,7 @@ function testRoundTrip ( assert, e, d ) {
       const from = new Uint8Array( len );
       for ( let v = 0 ; v <= 255 ; v++ ) {
          from.fill( v );
-         const test = `byte[${len}]{${v}}`;
+         const test = 'byte[' + len + ']{' + v + '}';
          try {
             const enc = e.encode( from );
             assert.ok( d.test( enc ), test + " encoded data test." );
@@ -74,7 +74,7 @@ function testRoundTrip ( assert, e, d ) {
             assert.propEqual( dec, from, test + " round trip." );
          } catch ( ex ) {
             assert.notOk( true, test + " round trip throws " + ex );
-         };
+         }
       }
    }
 }
@@ -144,9 +144,13 @@ QUnit.test( "RfcSpec", function ( assert ) {
    if ( ! rfcE.encodeBlockReverse )
       return assert.ok( true, 'No BigInt support; test bypassed' ); // Dummy test so that QUnit does not report failure
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
-   const encoded = "4)+k&C#VzJ4br>0wv%Yp";
-   assert.equal( new TextDecoder( 'ascii' ).decode( rfcE.encodeBlockReverse( addr )[0] ), encoded, "Inet encode" );
-   //assert.propEqual( rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ), addr, "Inet encode" ) );
+   const encoded = new TextEncoder().encode( "4)+k&C#VzJ4br>0wv%Yp" );
+   let result = rfcE.encodeBlockReverse( addr );
+   assert.propEqual( result[0], encoded, "Inet encode" );
+   assert.equal( result[1], encoded.length, "Inet encode length" );
+   result = rfcD.decodeBlockReverse( encoded );
+   assert.propEqual( result[0], addr, "Inet decode" );
+   assert.equal( result[1], addr.length, "Inet decode length" );
 } );
 
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );
@@ -155,7 +159,7 @@ QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcT
 QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
 QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
 QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
-//QUnit.test( "RfcWrongLength", function( assert ) { testInvalidLength( assert, rfcE, rfcD ); } );
+
 
 
 /////////// Z85 Tests ///////////
@@ -190,7 +194,6 @@ QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85T
 QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
 QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
 QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
-//QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
 
 
 

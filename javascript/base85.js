@@ -7,7 +7,7 @@ const TypedArrayType = Object.getPrototypeOf( Uint8Array );
 
 // Convert all compatible data to DataView
 function MakeDataView ( data, size ) {
-   if ( data == null || data == undefined )
+   if ( ( data == null || data == undefined ) && size !== undefined )
       return new DataView( new Uint8Array( size() ).buffer );
    if ( data instanceof DataView )
       return data;
@@ -22,7 +22,7 @@ function MakeDataView ( data, size ) {
 
 // Convert all compatible output to Uint8Array
 function MakeUint8 ( data, size ) {
-   if ( data == null || data == undefined )
+   if ( ( data == null || data == undefined ) && size !== undefined )
       return new Uint8Array( size() );
    if ( data instanceof Uint8Array )
       return data;
@@ -259,12 +259,15 @@ export const Base85Decoder = {
      */
    decodeBlockReverse ( data, out ) {
       data = MakeUint8( data );
-      const size = Math.max( 0, Math.ceil( data.length * 0.8 ) ), map = this.getDecodeMap().map( e => BigInt( e ) );
+      const size = this.calcDecodedLength( data ), map = Array.from( this.getDecodeMap(), e => BigInt( e ) );
       out = MakeUint8( out, () => size );
-      let sum = BigInt( 0 ), b255 = BigInt( 255 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
+      let sum = BigInt( 0 ), b256 = BigInt( 256 ), b85 = BigInt( 85 ), b8 = BigInt( 8 );
       for ( let i = data.byteOffset, len = data.byteLength ; i < len ; i++ )
          sum = sum * b85 + map[ data[ i ] ];
-      throw 'Not Implemented';
+      for ( let start = out.byteOffset - 1, i = start + size ; i >= start ; i-- ) {
+         out[ i ] = parseInt( sum % b256 );
+         sum >>= b8;
+      }
       //System.arraycopy( sum.toByteArray(), 0, out, out_offset, size );
       return [ out, size ];
    },
