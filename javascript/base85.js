@@ -336,9 +336,22 @@ export const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
 }, Rfc1924Encoder.ENCODE_MAP );
 
 
+/**  This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
+  * Malformed data may or may not throws IllegalArgumentException on decode; call test(byte[]) to check data if necessary.
+  * Decoder instances can be safely shared by multiple threads.
+  * @see https://rfc.zeromq.org/spec:32/Z85/
+  */
+export const Z85Decoder = CreateClass( { __proto__ : Base85Decoder,
+   DECODE_MAP : new Uint8Array( 127 ),
+   VALID_BYTES : new Array( 127 ),
+   Name : "Z85",
+}, Z85Encoder.ENCODE_MAP );
+
+
 export default {
    getRfc1942Encoder() { return Rfc1924Encoder; },
    getRfc1942Decoder() { return Rfc1924Decoder; },
    getZ85Encoder() { return Z85Encoder; },
+   getZ85Decoder() { return Z85Decoder; },
    getAscii85Encoder() { return Ascii85Encoder; },
 };

@@ -5,7 +5,7 @@ window.Base85 = Base85; // For browser console debug
 const rfcE = Base85.getRfc1942Encoder();
 const rfcD = Base85.getRfc1942Decoder();
 const z85E = Base85.getZ85Encoder();
-//const z85D = Base85.getZ85Decoder();
+const z85D = Base85.getZ85Decoder();
 const a85E = Base85.getAscii85Encoder();
 //const a85D = Base85.getAscii85Decoder();
 
@@ -124,9 +124,9 @@ QUnit.test( "Z85Spec", function ( assert ) {
 
 
 QUnit.test( "Z85StrEncode", function( assert ) { testStrEncode( assert, z85E, z85Tests ); } );
-//QUnit.test( "Z85StrDecode", function( assert ) { testStrDecode( assert, z85D, z85Tests ); } );
+QUnit.test( "Z85StrDecode", function( assert ) { testStrDecode( assert, z85D, z85Tests ); } );
 QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85Tests ); } );
-//QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
+QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
 //QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
