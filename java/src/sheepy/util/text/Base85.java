@@ -629,14 +629,6 @@ public class Base85 {
       }
    }
 
-   private static void checkCharacterMap ( byte[] map ) {
-      if ( map.length != 85 ) throw new IllegalArgumentException( "Base85 character map requires exactly 85 characters. Got " + map.length );
-      for ( int i = 0 ; i < 83 ; i++ )
-         for ( int j = i+1 ; j < 84 ; j++ )
-            if ( map[i] == map[j] )
-               throw new IllegalArgumentException( "Base85 character map must not contain duplicates");
-   }
-
    private static Encoder RFC1924ENCODER, Z85ENCODER, ASCII85ENCODER;
    private static Decoder RFC1924DECODER, Z85DECODER, ASCII85DECODER;
 
@@ -666,13 +658,6 @@ public class Base85 {
    }
 
    public static void main( String[] args ) {
-      checkCharacterMap( Ascii85Encoder.ENCODE_MAP );
-      Encoder e = getAscii85Encoder();
-      Decoder d = getAscii85Decoder();
-      byte[] test = new byte[4];
-      Arrays.fill( test, (byte)0 );
-      System.out.println( e.encodeToString( test ) );
-      System.out.println( d.decodeToBytes( "z" )[0] );
       /*
       System.out.println( e.encode( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ) );
       System.out.println( e.encode( "測試中" ) );

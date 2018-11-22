@@ -351,10 +351,18 @@ export const Z85Decoder = CreateClass( { __proto__ : Base85Decoder,
 }, Z85Encoder.ENCODE_MAP );
 
 
+export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
+   DECODE_MAP : new Uint8Array( 127 ),
+   VALID_BYTES : new Array( 127 ),
+   Name : "Ascii85",
+}, Ascii85Encoder.ENCODE_MAP );
+
+
 export default {
    getRfc1942Encoder() { return Rfc1924Encoder; },
    getRfc1942Decoder() { return Rfc1924Decoder; },
    getZ85Encoder() { return Z85Encoder; },
    getZ85Decoder() { return Z85Decoder; },
    getAscii85Encoder() { return Ascii85Encoder; },
+   getAscii85Decoder() { return Ascii85Decoder; },
 };

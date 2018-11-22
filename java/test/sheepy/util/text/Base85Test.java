@@ -48,9 +48,9 @@ public class Base85Test {
 
    private void recurTestValidate ( byte[] ok, byte[] fail, byte[] buf, int offset, Decoder decoder ) {
       if ( offset >= buf.length ) return;
-      int count = offset + 1;
+      int count = offset + 1, oklen = ok.length;
       if ( count % 5 == 1 )  {
-         buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
+         buf[ offset ] = ok[ rng.nextInt( oklen ) ];
          testValidateFail( buf, count, decoder );
          recurTestValidate( ok, fail, buf, count, decoder );
          return;
@@ -59,7 +59,7 @@ public class Base85Test {
          buf[ offset ] = fail[ i ]; // Wrong data should also fails
          testValidateFail( buf, offset + 1, decoder );
       }
-      buf[ offset ] = ok[ rng.nextInt( ok.length ) ];
+      buf[ offset ] = ok[ rng.nextInt( oklen ) ];
       if ( ! decoder.test( buf, 0, count ) ) // Otherwise should pass
          fail( randData( buf, count ) + " should not return false" );
       recurTestValidate( ok, fail, buf, count, decoder );
@@ -200,7 +200,7 @@ public class Base85Test {
       byte[] addr = Inet6Address.getByName( "1080:0:0:0:8:800:200C:417A" ).getAddress();
       String encoded = "4)+k&C#VzJ4br>0wv%Yp";
       assertEquals( "Inet encode", encoded, new String( rfcE.encodeBlockReverse( addr ), US_ASCII ) );
-      assertArrayEquals( "Inet encode", addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ) ) );
+      assertArrayEquals( "Inet decode", addr, rfcD.decodeBlockReverse( encoded.getBytes( US_ASCII ) ) );
    }
 
    @Test public void testRfcStrEncode() { testStrEncode( rfcE, rfcTests ); }

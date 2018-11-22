@@ -7,7 +7,7 @@ const rfcD = Base85.getRfc1942Decoder();
 const z85E = Base85.getZ85Encoder();
 const z85D = Base85.getZ85Decoder();
 const a85E = Base85.getAscii85Encoder();
-//const a85D = Base85.getAscii85Decoder();
+const a85D = Base85.getAscii85Decoder();
 
 /////////// Generic Test Routines ///////////
 
@@ -230,13 +230,12 @@ QUnit.test( "A85Spec", function( assert ) {
 } );
 
 QUnit.test( "A85StrEncode", function( assert ) { testStrEncode( assert, a85E, a85Tests ); } );
-//QUnit.test( "A85StrDecode", function( assert ) { testStrDecode( assert, a85D, a85Tests ); } );
+QUnit.test( "A85StrDecode", function( assert ) { testStrDecode( assert, a85D, a85Tests ); } );
 QUnit.test( "A85Encode", function( assert ) { testByteEncode( assert, a85E, a85Tests ); } );
-//QUnit.test( "A85Decode", function( assert ) { testByteDecode( assert, a85D, a85Tests ); } );
-//QUnit.test( "A85RoundTrip", function( assert ) { testRoundTrip( assert, a85E, a85D ); } );
+QUnit.test( "A85Decode", function( assert ) { testByteDecode( assert, a85D, a85Tests ); } );
+QUnit.test( "A85RoundTrip", function( assert ) { testRoundTrip( assert, a85E, a85D ); } );
 //QUnit.test( "A85WrongData", function( assert ) {
 //   testInvalidData( assert, a85E, a85D );
 //   assert.notOk( a85D.test( "ya" ), "Ascii85 test \"ya\" should fail" );
 //   assert.notOk( a85D.test( "zya" ), "Ascii85 test \"ya\" should fail" );
 //} );
-//QUnit.test( "A85WrongLength", function( assert ) { testInvalidLength( assert, a85E, a85D ); } );
