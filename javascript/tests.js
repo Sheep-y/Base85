@@ -145,12 +145,10 @@ QUnit.test( "RfcSpec", function ( assert ) {
       return assert.ok( true, 'No BigInt support; test bypassed' ); // Dummy test so that QUnit does not report failure
    const addr = Uint8Array.from( [16, 128, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 32, 12, 65, 122] );
    const encoded = new TextEncoder().encode( "4)+k&C#VzJ4br>0wv%Yp" );
-   let result = rfcE.encodeBlockReverse( addr );
-   assert.propEqual( result[0], encoded, "Inet encode" );
-   assert.equal( result[1], encoded.length, "Inet encode length" );
-   result = rfcD.decodeBlockReverse( encoded );
-   assert.propEqual( result[0], addr, "Inet decode" );
-   assert.equal( result[1], addr.length, "Inet decode length" );
+   assert.propEqual( rfcE.encodeBlockReverse( addr ), encoded, "Inet encode" );
+   assert.equal( rfcE.encodeBlockReverse( addr, new Uint8Array( 64 ) ), encoded.length, "Inet encode length" );
+   assert.propEqual( rfcD.decodeBlockReverse( encoded ), addr, "Inet decode" );
+   assert.equal( rfcD.decodeBlockReverse( encoded, new Uint8Array( 64 ) ), addr.length, "Inet decode length" );
 } );
 
 QUnit.test( "RfcStrEncode", function( assert ) { testStrEncode( assert, rfcE, rfcTests ); } );

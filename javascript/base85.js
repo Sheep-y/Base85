@@ -104,9 +104,10 @@ export const Base85Encoder = {
      * when the data part is exactly 16 bytes (128 bits) long.
      * Because the whole input data part is encoded as one big block,
      * this is much less efficient than the more common encodings.
-     * Output is [ Uint8Array result, int encoded_byte_count ]
+     * If output is provided, returns number of bytes encoded. Otherwise return an Uint8Array.
      */
    encodeBlockReverse ( data, out ) {
+      const outputIsProveded = out ? true : false;
       data = MakeDataView( data );
       const size = this.calcEncodedLength( data ), map = this.getEncodeMap();
       out = MakeUint8( out, () => size );
@@ -118,7 +119,7 @@ export const Base85Encoder = {
          sum = ( sum - mod ) / b85;
          out[ i ] = map[ mod ];
       }
-      return [ out, size ];
+      return outputIsProveded ? size : out;
    },
 
    _encodeDangling ( encodeMap, out, wi, buf, leftover ) {
@@ -256,8 +257,10 @@ export const Base85Decoder = {
      * This is the strict algorithm specified by RFC 1924 for IP address decoding,
      * when the data is exactly 16 bytes (128 bits) long.
      * Output is Uint8Array.
+     * If output is provided, returns number of bytes decoded. Otherwise return an Uint8Array.
      */
    decodeBlockReverse ( data, out ) {
+      const outputIsProveded = out ? true : false;
       data = MakeUint8( data );
       const size = this.calcDecodedLength( data ), map = Array.from( this.getDecodeMap(), e => BigInt( e ) );
       out = MakeUint8( out, () => size );
@@ -268,8 +271,7 @@ export const Base85Decoder = {
          out[ i ] = parseInt( sum % b256 );
          sum >>= b8;
       }
-      //System.arraycopy( sum.toByteArray(), 0, out, out_offset, size );
-      return [ out, size ];
+      return outputIsProveded ? size : out;
    },
 
    /** Test that given data can be decoded correctly. */
