@@ -73,11 +73,52 @@ function testRoundTrip ( assert, e, d ) {
             assert.equal( d.calcDecodedLength( enc ), dec.length, test + " decoded length" );
             assert.propEqual( dec, from, test + " round trip." );
          } catch ( ex ) {
-            fail( test + " round trip throws " + ex );
+            assert.notOk( true, test + " round trip throws " + ex );
          };
       }
    }
 }
+
+function testInvalidData ( assert, e, d ) {
+   // JavaScript decode use Uint8Array which does not yield negative values or throw out of range error
+   //assert.throws( () => d.decode( Uint8Array.of( 127, 127 ) ), Error, "Decode char(127)" );
+   //assert.throws( () => d.decode( Uint8Array.of( -1, -1 ) ), Error, "Decode char(-1)" );
+   const validCodes = e.getEncodeMap(), invalidCodes = reverseCharset( validCodes );
+   recurTestValidate( assert, validCodes, invalidCodes, new Uint8Array( 11 ), 0, d );
+}
+
+function reverseCharset( valids ) {
+   const list = new Array( 255 ).fill( false );
+   for ( let i of valids ) list[i] = true;
+   return list.map( (e,i) => e ? null : i ).filter( e => e !== null );
+}
+
+function recurTestValidate ( assert, ok, fail, buf, offset, decoder ) {
+   if ( offset >= buf.length ) return;
+   const count = offset + 1, len = ok.length;
+   if ( count % 5 == 1 )  { // Wrong length should fails
+      buf[ offset ] = ok[ parseInt( Math.random() * len ) ];
+      testValidateFail( assert, buf, count, decoder );
+      recurTestValidate( assert, ok, fail, buf, count, decoder );
+      return;
+   }
+   for ( let e of fail ) {
+      buf[ offset ] = e; // Wrong data should also fails
+      testValidateFail( assert, buf, offset + 1, decoder );
+   }
+   buf[ offset ] = ok[ parseInt( Math.random() * len ) ];
+   const result = decoder.test( buf.slice( 0, count ) );
+   assert.ok( result, "test( Uint8Array.of( " + buf.slice( 0, count ).toString() + " ) ) === true" );
+   if ( ! result ) return;
+   recurTestValidate( assert, ok, fail, buf, count, decoder );
+   if ( count == 0 )
+      assert.ok( true, "" );
+}
+
+function testValidateFail ( assert, buf, len, decoder ) {
+   assert.notOk( decoder.test( buf.slice( 0, len ) ), "test( Uint8Array.of( " + buf.slice( 0, len ).toString() + " ) ) === false" );
+}
+
 
 
 /////////// RFC Tests ///////////
@@ -113,7 +154,7 @@ QUnit.test( "RfcStrDecode", function( assert ) { testStrDecode( assert, rfcD, rf
 QUnit.test( "RfcEncode", function( assert ) { testByteEncode( assert, rfcE, rfcTests ); } );
 QUnit.test( "RfcDecode", function( assert ) { testByteDecode( assert, rfcD, rfcTests ); } );
 QUnit.test( "RfcRoundTrip", function( assert ) { testRoundTrip( assert, rfcE, rfcD ); } );
-//QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
+QUnit.test( "RfcWrongData", function( assert ) { testInvalidData( assert, rfcE, rfcD ); } );
 //QUnit.test( "RfcWrongLength", function( assert ) { testInvalidLength( assert, rfcE, rfcD ); } );
 
 
@@ -148,7 +189,7 @@ QUnit.test( "Z85StrDecode", function( assert ) { testStrDecode( assert, z85D, z8
 QUnit.test( "Z85Encode", function( assert ) { testByteEncode( assert, z85E, z85Tests ); } );
 QUnit.test( "Z85Decode", function( assert ) { testByteDecode( assert, z85D, z85Tests ); } );
 QUnit.test( "Z85RoundTrip", function( assert ) { testRoundTrip( assert, z85E, z85D ); } );
-//QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
+QUnit.test( "Z85WrongData", function( assert ) { testInvalidData( assert, z85E, z85D ); } );
 //QUnit.test( "Z85WrongLength", function( assert ) { testInvalidLength( assert, z85E, z85D ); } );
 
 

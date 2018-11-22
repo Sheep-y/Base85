@@ -156,7 +156,7 @@ export const Base85Encoder = {
    },
 
    getEncodeMap () { return this.ENCODE_MAP; },
-   getCharset() { return BufToCode( this.getEncodeMap() ); },
+   getCharset () { return BufToCode( this.getEncodeMap() ); },
 };
 if ( typeof( BigInt ) == 'undefined' ) delete Base85Encoder.encodeBlockReverse;
 
