@@ -3,6 +3,8 @@ const Power4 = 52200625; // 85^4
 const Power3 = 614125;  // 85^3
 const Power2 = 7225;   // 85^2
 
+const z = 122, y = 121; // Ascii code for Ascii85
+
 const TypedArrayType = Object.getPrototypeOf( Uint8Array );
 
 // Convert all compatible data to DataView
@@ -214,9 +216,9 @@ export const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
 
    _writeData ( sum, map, out, wi ) {
       if ( this.useZ && sum == 0 )
-         out[wi++] = 122; // 'z'
+         out[wi++] = z;
       else if ( this.useY && sum == 0x20202020 )
-         out[wi++] = 121; // 'y'
+         out[wi++] = y;
       else
          return super._writeData( sum, map, out, wi );
       return wi;
@@ -357,6 +359,69 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
    VALID_BYTES : new Array( 127 ),
    Name : "Ascii85",
+
+   calcDecodedLength ( data ) {
+      data = MakeUint8( data );
+      let len = data.length, deflated = len, i;
+      for ( i = 0 ; i < len ; i += 5 )
+         if ( data[ i ] == z || data[ i ] == y ) {
+            deflated += 4;
+            i -= 4;
+         }
+      if ( i != len ) {
+         i -= 5;
+         while ( i < len && ( data[i] == z || data[i] == y ) ) {
+            deflated += 4;
+            i -= 4;
+         }
+      }
+      return super.calcDecodedLength( null, 0, deflated );
+   },
+
+   test ( data ) {
+      data = MakeUint8( data );
+      try {
+         let deviation = 0, len = data.length, VALID_BYTES = this.VALID_BYTES;
+         for ( let i = 0 ; i < len ; i++ ) {
+            const e = data[i];
+            if ( e > 127 || ! VALID_BYTES[ e ] )
+               if ( ( deviation + i - offset ) % 5 != 0 || ( e != 122 && e != 121 ) )
+                  return false;
+               else
+                  deviation += 4;
+         }
+         super.calcDecodedLength( null, 0, len + deviation ); // Validate Length
+      } catch ( ignored ) { return false; }
+      return true;
+   },
+
+   _decode ( data, out ) {
+      let ri = 0, wi = 0;
+      const decodeMap = this.getDecodeMap(), buf = new Uint8Array( 4 ), buffer = new DataView( buf.buffer );
+      for ( let max = data.length, max2 = max - 4 ; ri < max ; wi += 4 ) {
+         while ( ri < max &&( data[ri] == 'z' || data[ri] == 'y' ) ) {
+            switch ( data[ri++] ) {
+            case 'z': buffer.setUint32( 0, 0 );
+                      break;
+            case 'y': buffer.setUint32( 0, 0x20202020 );
+                      break;
+            }
+            out.set( buf, wi );
+            wi += 4;
+         }
+         if ( ri < max2 ) {
+            this._putData( buffer, decodeMap, data, ri );;
+            ri += 5;
+            out.set( buf, wi );
+         } else
+            break;
+      }
+      if ( leftover == 0 ) return wi;
+      leftover = this._decodeDangling( decodeMap, data, ri, buffer, leftover );
+      out.set( new Uint8Array( buf.buffer, 0, leftover ), wi );
+      return wi * 4 + leftover;
+   }
+
 }, Ascii85Encoder.ENCODE_MAP );
 
 
