@@ -76,8 +76,10 @@ function CreateClass ( baseObject, map ) {
 export const Base85Encoder = {
 
    /** Calculate the max encoded byte length of a given input data. */
-   calcEncodedLength ( data ) {
-      return ~~Math.ceil( MakeDataView( data ).byteLength * 1.25 );
+   calcEncodedLength ( data, length ) {
+      if ( data || length === undefined )
+         length = MakeDataView( data ).byteLength;
+      return ~~Math.ceil( length * 1.25 );
    },
 
    /** Encode data.
@@ -232,9 +234,9 @@ export const Base85Decoder = {
    /** Calculate byte length of decoded data.
      * Assumes data is correct; use test method to validate data.
      */
-   calcDecodedLength ( data ) {
-      data = MakeUint8( data );
-      const length = data.byteLength;
+   calcDecodedLength ( data, length ) {
+      if ( data || length === undefined )
+         length = MakeUint8( data ).byteLength;
       if ( length % 5 == 1 ) throw new Error( length + " is not a valid Base85/" + this.Name + " data length." );
       return parseInt( length * 0.8 );
    },
@@ -375,7 +377,7 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
             i -= 4;
          }
       }
-      return super.calcDecodedLength( null, 0, deflated );
+      return super.calcDecodedLength( null, deflated );
    },
 
    test ( data ) {
@@ -396,9 +398,9 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
    },
 
    _decode ( data, out ) {
-      let ri = 0, wi = 0;
+      let ri = 0, wi = 0, max = data.length;
       const decodeMap = this.getDecodeMap(), buf = new Uint8Array( 4 ), buffer = new DataView( buf.buffer );
-      for ( let max = data.length, max2 = max - 4 ; ri < max ; wi += 4 ) {
+      for ( let max2 = max - 4 ; ri < max ; wi += 4 ) {
          while ( ri < max &&( data[ri] == 'z' || data[ri] == 'y' ) ) {
             switch ( data[ri++] ) {
             case 'z': buffer.setUint32( 0, 0 );
@@ -416,10 +418,10 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
          } else
             break;
       }
-      if ( leftover == 0 ) return wi;
-      leftover = this._decodeDangling( decodeMap, data, ri, buffer, leftover );
+      if ( ri == max ) return wi;
+      const leftover = this._decodeDangling( decodeMap, data, ri, buffer, max - ri );
       out.set( new Uint8Array( buf.buffer, 0, leftover ), wi );
-      return wi * 4 + leftover;
+      return wi + leftover;
    }
 
 }, Ascii85Encoder.ENCODE_MAP );
