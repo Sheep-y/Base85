@@ -19,8 +19,8 @@ public class Base85Test {
    private final Base85.Decoder rfcD, z85D, a85D;
 
    public Base85Test() {
-      rfcE = Base85.getRfc1942Encoder();
-      rfcD = Base85.getRfc1942Decoder();
+      rfcE = Base85.getRfc1924Encoder();
+      rfcD = Base85.getRfc1924Decoder();
       z85E = Base85.getZ85Encoder();
       z85D = Base85.getZ85Decoder();
       a85E = Base85.getAscii85Encoder();

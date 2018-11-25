@@ -428,10 +428,10 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
 
 
 export default {
-   getRfc1942Encoder() { return Rfc1924Encoder; },
-   getRfc1942Decoder() { return Rfc1924Decoder; },
-   getZ85Encoder() { return Z85Encoder; },
-   getZ85Decoder() { return Z85Decoder; },
-   getAscii85Encoder() { return Ascii85Encoder; },
-   getAscii85Decoder() { return Ascii85Decoder; },
+   Rfc1924Encoder,
+   Rfc1924Decoder,
+   Z85Encoder,
+   Z85Decoder,
+   Ascii85Encoder,
+   Ascii85Decoder,
 };

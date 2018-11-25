@@ -632,11 +632,11 @@ public class Base85 {
    private static Encoder RFC1924ENCODER, Z85ENCODER, ASCII85ENCODER;
    private static Decoder RFC1924DECODER, Z85DECODER, ASCII85DECODER;
 
-   public static Encoder getRfc1942Encoder() {
+   public static Encoder getRfc1924Encoder() {
       if ( RFC1924ENCODER == null ) RFC1924ENCODER = new Rfc1924Encoder();
       return RFC1924ENCODER; // No worry if multiple encoder is created in multiple threads. Same for all.
    }
-   public static Decoder getRfc1942Decoder() {
+   public static Decoder getRfc1924Decoder() {
       if ( RFC1924DECODER == null ) RFC1924DECODER = new Rfc1924Decoder();
       return RFC1924DECODER;
    }

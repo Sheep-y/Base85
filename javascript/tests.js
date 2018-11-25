@@ -2,12 +2,12 @@ import Base85 from './base85.js';
 
 window.Base85 = Base85; // For browser console debug
 
-const rfcE = Base85.getRfc1942Encoder();
-const rfcD = Base85.getRfc1942Decoder();
-const z85E = Base85.getZ85Encoder();
-const z85D = Base85.getZ85Decoder();
-const a85E = Base85.getAscii85Encoder();
-const a85D = Base85.getAscii85Decoder();
+const rfcE = Base85.Rfc1924Encoder;
+const rfcD = Base85.Rfc1924Decoder;
+const z85E = Base85.Z85Encoder;
+const z85D = Base85.Z85Decoder;
+const a85E = Base85.Ascii85Encoder;
+const a85D = Base85.Ascii85Decoder;
 
 /////////// Generic Test Routines ///////////
 
