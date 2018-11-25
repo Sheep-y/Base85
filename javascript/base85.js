@@ -401,12 +401,12 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
       let ri = 0, wi = 0, max = data.length;
       const decodeMap = this.getDecodeMap(), buf = new Uint8Array( 4 ), buffer = new DataView( buf.buffer );
       for ( let max2 = max - 4 ; ri < max ; wi += 4 ) {
-         while ( ri < max &&( data[ri] == 'z' || data[ri] == 'y' ) ) {
+         while ( ri < max &&( data[ri] == z || data[ri] == y ) ) {
             switch ( data[ri++] ) {
-            case 'z': buffer.setUint32( 0, 0 );
-                      break;
-            case 'y': buffer.setUint32( 0, 0x20202020 );
-                      break;
+            case z: buffer.setUint32( 0, 0 );
+                    break;
+            case y: buffer.setUint32( 0, 0x20202020 );
+                    break;
             }
             out.set( buf, wi );
             wi += 4;
