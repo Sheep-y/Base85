@@ -387,7 +387,7 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
          for ( let i = 0 ; i < len ; i++ ) {
             const e = data[i];
             if ( e > 127 || ! VALID_BYTES[ e ] )
-               if ( ( deviation + i - offset ) % 5 != 0 || ( e != 122 && e != 121 ) )
+               if ( ( deviation + i ) % 5 != 0 || ( e != z && e != y ) )
                   return false;
                else
                   deviation += 4;
@@ -412,7 +412,7 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
             wi += 4;
          }
          if ( ri < max2 ) {
-            this._putData( buffer, decodeMap, data, ri );;
+            this._putData( buffer, decodeMap, data, ri );
             ri += 5;
             out.set( buf, wi );
          } else
