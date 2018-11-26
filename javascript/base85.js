@@ -392,7 +392,7 @@ export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
                else
                   deviation += 4;
          }
-         super.calcDecodedLength( null, 0, len + deviation ); // Validate Length
+         super.calcDecodedLength( null, len + deviation ); // Validate Length
       } catch ( ignored ) { return false; }
       return true;
    },

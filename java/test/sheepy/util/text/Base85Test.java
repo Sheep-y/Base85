@@ -292,7 +292,7 @@ public class Base85Test {
    @Test public void testA85WrongData() {
       testInvalidData( a85E, a85D );
       assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "ya" ) );
-      assertFalse( "Ascii85 test \"ya\" should fail", a85D.test( "zya" ) );
+      assertFalse( "Ascii85 test \"zya\" should fail", a85D.test( "zya" ) );
    }
    @Test public void testA85WrongLength() { testInvalidLength( a85E, a85D ); }
 

@@ -232,8 +232,8 @@ QUnit.test( "A85StrDecode", function( assert ) { testStrDecode( assert, a85D, a8
 QUnit.test( "A85Encode", function( assert ) { testByteEncode( assert, a85E, a85Tests ); } );
 QUnit.test( "A85Decode", function( assert ) { testByteDecode( assert, a85D, a85Tests ); } );
 QUnit.test( "A85RoundTrip", function( assert ) { testRoundTrip( assert, a85E, a85D ); } );
-//QUnit.test( "A85WrongData", function( assert ) {
-//   testInvalidData( assert, a85E, a85D );
-//   assert.notOk( a85D.test( "ya" ), "Ascii85 test \"ya\" should fail" );
-//   assert.notOk( a85D.test( "zya" ), "Ascii85 test \"ya\" should fail" );
-//} );
+QUnit.test( "A85WrongData", function( assert ) {
+   testInvalidData( assert, a85E, a85D );
+   assert.notOk( a85D.test( "ya" ), "Ascii85 test \"ya\" should fail" );
+   assert.notOk( a85D.test( "zya" ), "Ascii85 test \"zya\" should fail" );
+} );
