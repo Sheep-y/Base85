@@ -1,5 +1,3 @@
-(function(){ 'use strict';
-
 // Constants used in encoding and decoding
 const Power4 = 52200625; // 85^4
 const Power3 = 614125;  // 85^3
@@ -75,7 +73,7 @@ function CreateClass ( baseObject, map ) {
 
 
 /* A basic encoder.  Just inherit and override ENCODE_MAP to get a functional encoder. */
-const Base85Encoder = {
+export const Base85Encoder = {
 
    /** Calculate the max encoded byte length of a given input data. */
    calcEncodedLength ( data, length ) {
@@ -173,7 +171,7 @@ if ( typeof( BigInt ) == 'undefined' ) delete Base85Encoder.encodeBlockReverse;
   *
   * @see https://tools.ietf.org/html/rfc1924
   */
-const Rfc1924Encoder = CreateClass( { __proto__ : Base85Encoder,
+export const Rfc1924Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~" ),
 } );
 
@@ -182,7 +180,7 @@ const Rfc1924Encoder = CreateClass( { __proto__ : Base85Encoder,
   *
   * @see https://rfc.zeromq.org/spec:32/Z85/
   */
-const Z85Encoder = CreateClass( { __proto__ : Base85Encoder,
+export const Z85Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#" ),
 } );
 
@@ -193,7 +191,7 @@ const Z85Encoder = CreateClass( { __proto__ : Base85Encoder,
   * Encoder instances can be safely shared by multiple threads.
   * @see https://en.wikipedia.org/wiki/Ascii85
   */
-const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
+export const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
    ENCODE_MAP : StringToMap( "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu" ),
 
    calcEncodedLength ( data ) {
@@ -232,7 +230,7 @@ const Ascii85Encoder = CreateClass( { __proto__ : Base85Encoder,
 
 
 /* A basic decoder.  Just inherit and override Name, ENCODE_MAP, and VALID_BYTES to get a functional decoder. */
-const Base85Decoder = {
+export const Base85Decoder = {
    /** Calculate byte length of decoded data.
      * Assumes data is correct; use test method to validate data.
      */
@@ -340,7 +338,7 @@ if ( typeof( BigInt ) == 'undefined' ) delete Base85Decoder.decodeBlockReverse;
   * Decoder instances can be safely shared by multiple threads.
   * @see https://tools.ietf.org/html/rfc1924
   */
-const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
+export const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
    VALID_BYTES : new Array( 127 ),
    Name : "RFC1924",
@@ -352,14 +350,14 @@ const Rfc1924Decoder = CreateClass( { __proto__ : Base85Decoder,
   * Decoder instances can be safely shared by multiple threads.
   * @see https://rfc.zeromq.org/spec:32/Z85/
   */
-const Z85Decoder = CreateClass( { __proto__ : Base85Decoder,
+export const Z85Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
    VALID_BYTES : new Array( 127 ),
    Name : "Z85",
 }, Z85Encoder.ENCODE_MAP );
 
 
-const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
+export const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
    VALID_BYTES : new Array( 127 ),
    Name : "Ascii85",
@@ -429,7 +427,7 @@ const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
 }, Ascii85Encoder.ENCODE_MAP );
 
 
-const Base85 = {
+export default {
    Base85Encoder,
    Base85Decoder,
    Rfc1924Encoder,
@@ -440,10 +438,3 @@ const Base85 = {
    Ascii85Decoder,
    CreateClass,
 };
-
-if ( typeof( window ) !== 'undefined' )
-   window.Base85 = Base85;
-else if ( typeof( global ) !== 'undefined' )
-   global.Base85 = Base85;
-
-})();
