@@ -448,15 +448,15 @@ public class Base85 {
       public boolean test ( byte[] encoded_data, int offset, int length ) { return _test( encoded_data, offset, length ); }
 
       protected boolean _test( final byte[] data, final int offset, final int length ) {
-         boolean[] valids = getValidBytes();
-         for ( int i = offset, len = offset + length ; i < len ; i++ ) {
-            byte e = data[i];
-            if ( e < 0 || ! valids[ e ] )
-               return false;
-         }
+         byte[] valids = getDecodeMap();
          try {
+            for ( int i = offset, len = offset + length ; i < len ; i++ ) {
+               byte e = data[i];
+               if ( valids[ e ] < 0 )
+                  return false;
+            }
             calcDecodedLength( data, offset, length );
-         } catch ( IllegalArgumentException ex ) {
+         } catch ( ArrayIndexOutOfBoundsException | IllegalArgumentException ex ) {
             return false;
          }
          return true;
@@ -506,7 +506,6 @@ public class Base85 {
       }
 
       protected abstract byte[] getDecodeMap();
-      protected abstract boolean[] getValidBytes();
       protected abstract String getName();
    }
 
@@ -518,13 +517,11 @@ public class Base85 {
      */
    public static class Rfc1924Decoder extends Decoder {
       private static final byte[] DECODE_MAP = new byte[127];
-      private static final boolean[] VALID_BYTES = new boolean[255];
       static {
-         buildDecodeMap( Rfc1924Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
+         buildDecodeMap( Rfc1924Encoder.ENCODE_MAP, DECODE_MAP );
       }
       @Override protected String getName() { return "RFC1924"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
-      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
    }
 
    /** This class decodes data in the Base85 encoding scheme Z85 as described by ZeroMQ.
@@ -534,13 +531,11 @@ public class Base85 {
      */
    public static class Z85Decoder extends Decoder {
       private static final byte[] DECODE_MAP = new byte[127];
-      private static final boolean[] VALID_BYTES = new boolean[255];
       static {
-         buildDecodeMap( Z85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
+         buildDecodeMap( Z85Encoder.ENCODE_MAP, DECODE_MAP );
       }
       @Override protected String getName() { return "Z85"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
-      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
    }
 
    /** This class decodes Ascii85 encoded data (Adobe variant without &lt;~ and ~&gt;).
@@ -575,25 +570,23 @@ public class Base85 {
             int deviation = 0;
             for ( int i = offset, len = offset + length ; i < len ; i++ ) {
                byte e = encoded_data[i];
-               if ( e < 0 || ! VALID_BYTES[ e ] )
+               if ( DECODE_MAP[ e ] < 0 )
                   if ( ( deviation + i - offset ) % 5 != 0 || ( e != 'z' && e != 'y' ) )
                      return false;
                   else
                      deviation += 4;
             }
             super.calcDecodedLength( null, 0, length + deviation ); // Validate length
-         } catch ( IllegalArgumentException ignored ) { return false; }
+         } catch ( ArrayIndexOutOfBoundsException | IllegalArgumentException ignored ) { return false; }
          return true;
       }
 
       private static final byte[] DECODE_MAP = new byte[127];
-      private static final boolean[] VALID_BYTES = new boolean[255];
       static {
-         buildDecodeMap( Ascii85Encoder.ENCODE_MAP, DECODE_MAP, VALID_BYTES );
+         buildDecodeMap( Ascii85Encoder.ENCODE_MAP, DECODE_MAP );
       }
       @Override protected String getName() { return "Ascii85"; }
       @Override protected byte[] getDecodeMap() { return DECODE_MAP; }
-      @Override protected boolean[] getValidBytes() { return VALID_BYTES; }
 
       @Override protected int _decode ( byte[] in, int ri, int rlen, final byte[] out, int wi ) {
          final int re = ri + rlen, wo = wi;
@@ -623,11 +616,11 @@ public class Base85 {
       }
    }
 
-   private static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap, boolean[] validMap ) {
+   private static void buildDecodeMap ( byte[] encodeMap, byte[] decodeMap ) {
+      Arrays.fill( decodeMap, (byte) -1 );
       for ( byte i = 0, len = (byte) encodeMap.length ; i < len ; i++ ) {
          byte b = encodeMap[ i ];
          decodeMap[ b ] = i;
-         validMap [ b ] = true;
       }
    }
 
