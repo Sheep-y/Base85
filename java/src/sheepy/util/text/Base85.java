@@ -550,6 +550,9 @@ public class Base85 {
      * @see https://en.wikipedia.org/wiki/Ascii85
      */
    private static class Ascii85Decoder extends Decoder {
+      private static final byte[] zeros = new byte[]{ 0, 0, 0, 0 };
+      private static final byte[] spaces = new byte[]{ 32, 32, 32, 32 };
+
       @Override public int calcDecodedLength ( byte[] encoded_data, int offset, int length ) {
          int deflated = length, len = offset + length, i;
          for ( i = offset ; i < len ; i += 5 )
@@ -597,14 +600,13 @@ public class Base85 {
          final ByteBuffer buffer = ByteBuffer.allocate( 4 );
          final byte[] buf = buffer.array(), decodeMap = getDecodeMap();
          for ( int max = ri + rlen, max2 = max - 4 ; ri < max ; wi += 4 ) {
-            while ( ri < max &&( in[ri] == 'z' || in[ri] == 'y' ) ) {
+            while ( ri < max && ( in[ri] == 'z' || in[ri] == 'y' ) ) {
+               byte[] src = null;
                switch ( in[ri++] ) {
-               case 'z': buffer.putInt( 0, 0 );
-                         break;
-               case 'y': buffer.putInt( 0, 0x20202020 );
-                         break;
+               case 'z': src = zeros; break;
+               case 'y': src = spaces; break;
                }
-               System.arraycopy( buf, 0, out, wi, 4 );
+               System.arraycopy( src, 0, out, wi, 4 );
                wi += 4;
             }
             if ( ri < max2 ) {

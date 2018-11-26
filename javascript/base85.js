@@ -358,6 +358,7 @@ const Z85Decoder = CreateClass( { __proto__ : Base85Decoder,
    Name : "Z85",
 }, Z85Encoder.ENCODE_MAP );
 
+const zeros = Uint8Array.of( 0, 0, 0, 0 ), spaces = Uint8Array.of( 32, 32, 32, 32 );
 
 const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
    DECODE_MAP : new Uint8Array( 127 ),
@@ -405,12 +406,9 @@ const Ascii85Decoder = CreateClass( { __proto__ : Base85Decoder,
       for ( let max2 = max - 4 ; ri < max ; wi += 4 ) {
          while ( ri < max &&( data[ri] == z || data[ri] == y ) ) {
             switch ( data[ri++] ) {
-            case z: buffer.setUint32( 0, 0 );
-                    break;
-            case y: buffer.setUint32( 0, 0x20202020 );
-                    break;
+            case z: out.set( zeros, wi ); break;
+            case y: out.set( spaces, wi ); break;
             }
-            out.set( buf, wi );
             wi += 4;
          }
          if ( ri < max2 ) {
