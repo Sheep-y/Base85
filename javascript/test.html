@@ -6,6 +6,10 @@
 </head><body>
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
+  <script>
+if ( location.protocol === 'file:' )
+   document.body.innerHTML = '<h1>ES6 modules cannot run as file. Please run on web server.</h1>';
+  </script>
   <script src="https://code.jquery.com/qunit/qunit-2.8.0.js"></script>
   <script src="base85.js"></script>
   <script type="module" src="test.js"></script>
